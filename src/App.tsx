@@ -24,9 +24,16 @@ import { detectLocationAndWeather } from './utils/locationService';
 export default function App() {
   // 1. User Profile State (persisted to localStorage)
   
-  const [userProfile, setUserProfileState] = useState<UserProfile>(initialUserProfile);
+  const [userProfile, setUserProfileState] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem('krishiveyra_profile');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { return initialUserProfile; }
+    }
+    return initialUserProfile;
+  });
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean>(() => localStorage.getItem('krishiveyra_guest') === 'true');
 
   // Initialize Firebase and Auth
   useEffect(() => {
@@ -34,6 +41,8 @@ export default function App() {
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           setFirebaseUser(user);
+          setIsGuest(false);
+          localStorage.removeItem('krishiveyra_guest');
         } else {
           setFirebaseUser(null);
         }
@@ -50,10 +59,19 @@ export default function App() {
       const { auth } = await initFirebase();
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
-      alert("Login failed. Please try again.");
+      const msg = error?.message || "Please check your network or popup blocker settings.";
+      if (confirm(`Google Sign-In failed (${msg}). Would you like to continue as a guest and use the app offline?`)) {
+        setIsGuest(true);
+        localStorage.setItem('krishiveyra_guest', 'true');
+      }
     }
+  };
+
+  const handleContinueAsGuest = () => {
+    setIsGuest(true);
+    localStorage.setItem('krishiveyra_guest', 'true');
   };
 
   // Sync profile with Firestore
@@ -281,7 +299,7 @@ export default function App() {
     );
   }
 
-  if (!firebaseUser) {
+  if (!firebaseUser && !isGuest) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-emerald-50 px-4">
         <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-emerald-100">
@@ -289,13 +307,21 @@ export default function App() {
             <span className="text-4xl">🌱</span>
           </div>
           <h1 className="text-3xl font-black text-emerald-900 mb-2 font-['Outfit']">KrishiVeyra</h1>
-          <p className="text-emerald-700 font-medium mb-8">Sign in to sync your farm data, diagnostic reports, and activity logs across your devices securely.</p>
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg shadow-lg shadow-emerald-200 transition active:scale-95 flex items-center justify-center gap-3"
-          >
-            Sign in with Google
-          </button>
+          <p className="text-emerald-700 font-medium mb-6">Sign in to sync your farm data, diagnostic reports, and activity logs across your devices securely.</p>
+          <div className="space-y-3">
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg shadow-lg shadow-emerald-200 transition active:scale-95 flex items-center justify-center gap-3"
+            >
+              Sign in with Google
+            </button>
+            <button
+              onClick={handleContinueAsGuest}
+              className="w-full py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-base transition active:scale-95 flex items-center justify-center gap-2"
+            >
+              Continue as Guest (Offline Mode)
+            </button>
+          </div>
         </div>
       </div>
     );
