@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initFirebase, getFirebaseDb } from './lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, doc, getDoc, setDoc, onSnapshot, query, where, addDoc, deleteDoc, orderBy } from 'firebase/firestore';
 
 import { UserProfile, CropScanResult, CurrentWeatherState, FarmDiaryEntry, ActivityType } from './types';
@@ -70,6 +70,26 @@ export default function App() {
     }
   };
 
+  const handleEmailLogin = async (email: string, pass: string) => {
+    try {
+      const { auth } = await initFirebase();
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error: any) {
+      console.error("Email login failed:", error);
+      throw error;
+    }
+  };
+
+  const handleEmailSignUp = async (email: string, pass: string) => {
+    try {
+      const { auth } = await initFirebase();
+      await createUserWithEmailAndPassword(auth, email, pass);
+    } catch (error: any) {
+      console.error("Email sign up failed:", error);
+      throw error;
+    }
+  };
+
   const handleContinueAsGuest = () => {
     setIsGuest(true);
     localStorage.setItem('krishiveyra_guest', 'true');
@@ -84,7 +104,8 @@ export default function App() {
         const res = await fetch('/api/user/profile', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (res.ok && contentType && contentType.includes('application/json')) {
           const data = await res.json();
           if (data.profile) {
             setUserProfileState({ ...initialUserProfile, ...data.profile, id: firebaseUser.uid });
@@ -205,25 +226,28 @@ export default function App() {
         const res = await fetch('/api/diary', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (res.ok && contentType && contentType.includes('application/json')) {
           const entries = await res.json();
-          setDiaryEntriesState(entries.map((e: any) => ({
-            id: e.entryId,
-            userId: firebaseUser.uid,
-            cropName: e.cropName,
-            plotName: e.plotName,
-            activityType: e.activityType,
-            date: e.date,
-            time: e.time,
-            notes: e.notes,
-            quantity: e.quantity,
-            unit: e.unit,
-            chemicalUsed: e.chemicalUsed,
-            cost: e.cost,
-            imageUrl: e.imageUrl,
-            status: e.status,
-            createdAt: e.createdAt
-          })));
+          if (Array.isArray(entries)) {
+            setDiaryEntriesState(entries.map((e: any) => ({
+              id: e.entryId,
+              userId: firebaseUser.uid,
+              cropName: e.cropName,
+              plotName: e.plotName,
+              activityType: e.activityType,
+              date: e.date,
+              time: e.time,
+              notes: e.notes,
+              quantity: e.quantity,
+              unit: e.unit,
+              chemicalUsed: e.chemicalUsed,
+              cost: e.cost,
+              imageUrl: e.imageUrl,
+              status: e.status,
+              createdAt: e.createdAt
+            })));
+          }
         }
       } catch (err) {
         console.error('Failed to fetch Cloud SQL diary:', err);
@@ -287,25 +311,33 @@ export default function App() {
           },
           body: JSON.stringify(newEntry)
         }).then(() => fetch('/api/diary', { headers: { 'Authorization': `Bearer ${token}` } }))
-          .then(res => res.json())
+          .then(async res => {
+            const contentType = res.headers.get('content-type');
+            if (res.ok && contentType && contentType.includes('application/json')) {
+              return res.json();
+            }
+            return [];
+          })
           .then(entries => {
-            setDiaryEntriesState(entries.map((e: any) => ({
-              id: e.entryId,
-              userId: firebaseUser.uid,
-              cropName: e.cropName,
-              plotName: e.plotName,
-              activityType: e.activityType,
-              date: e.date,
-              time: e.time,
-              notes: e.notes,
-              quantity: e.quantity,
-              unit: e.unit,
-              chemicalUsed: e.chemicalUsed,
-              cost: e.cost,
-              imageUrl: e.imageUrl,
-              status: e.status,
-              createdAt: e.createdAt
-            })));
+            if (Array.isArray(entries)) {
+              setDiaryEntriesState(entries.map((e: any) => ({
+                id: e.entryId,
+                userId: firebaseUser.uid,
+                cropName: e.cropName,
+                plotName: e.plotName,
+                activityType: e.activityType,
+                date: e.date,
+                time: e.time,
+                notes: e.notes,
+                quantity: e.quantity,
+                unit: e.unit,
+                chemicalUsed: e.chemicalUsed,
+                cost: e.cost,
+                imageUrl: e.imageUrl,
+                status: e.status,
+                createdAt: e.createdAt
+              })));
+            }
           }).catch(err => console.error('Failed to sync diary to Cloud SQL:', err));
       });
     } else {
@@ -344,25 +376,33 @@ export default function App() {
           },
           body: JSON.stringify(newEntry)
         }).then(() => fetch('/api/diary', { headers: { 'Authorization': `Bearer ${token}` } }))
-          .then(res => res.json())
+          .then(async res => {
+            const contentType = res.headers.get('content-type');
+            if (res.ok && contentType && contentType.includes('application/json')) {
+              return res.json();
+            }
+            return [];
+          })
           .then(entries => {
-            setDiaryEntriesState(entries.map((e: any) => ({
-              id: e.entryId,
-              userId: firebaseUser.uid,
-              cropName: e.cropName,
-              plotName: e.plotName,
-              activityType: e.activityType,
-              date: e.date,
-              time: e.time,
-              notes: e.notes,
-              quantity: e.quantity,
-              unit: e.unit,
-              chemicalUsed: e.chemicalUsed,
-              cost: e.cost,
-              imageUrl: e.imageUrl,
-              status: e.status,
-              createdAt: e.createdAt
-            })));
+            if (Array.isArray(entries)) {
+              setDiaryEntriesState(entries.map((e: any) => ({
+                id: e.entryId,
+                userId: firebaseUser.uid,
+                cropName: e.cropName,
+                plotName: e.plotName,
+                activityType: e.activityType,
+                date: e.date,
+                time: e.time,
+                notes: e.notes,
+                quantity: e.quantity,
+                unit: e.unit,
+                chemicalUsed: e.chemicalUsed,
+                cost: e.cost,
+                imageUrl: e.imageUrl,
+                status: e.status,
+                createdAt: e.createdAt
+              })));
+            }
           }).catch(err => console.error('Failed to sync diary to Cloud SQL:', err));
       });
     } else {
@@ -405,6 +445,8 @@ export default function App() {
     return (
       <LoginScreen 
         onGoogleLogin={handleGoogleLogin} 
+        onEmailLogin={handleEmailLogin}
+        onEmailSignUp={handleEmailSignUp}
         onGuestLogin={handleContinueAsGuest} 
       />
     );

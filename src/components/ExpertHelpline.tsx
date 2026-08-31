@@ -180,20 +180,25 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
         })
       });
 
-      const data = await res.json();
-      
-      if (data.success && data.reply) {
-        if (userId) {
-          const db = getFirebaseDb();
-          setDoc(doc(db, 'chatMessages', data.reply.id), { ...data.reply, userId });
-        } else {
-          setMessages(prev => [...prev, data.reply]);
-        }
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        
+        if (data.success && data.reply) {
+          if (userId) {
+            const db = getFirebaseDb();
+            setDoc(doc(db, 'chatMessages', data.reply.id), { ...data.reply, userId });
+          } else {
+            setMessages(prev => [...prev, data.reply]);
+          }
 
-        if (userProfile.voiceAutoRead) {
-          handleSpeak(data.reply.text);
+          if (userProfile.voiceAutoRead) {
+            handleSpeak(data.reply.text);
+          }
+          return;
         }
       }
+      throw new Error('Chat response was not valid JSON');
     } catch (err) {
       console.warn('Chat error:', err);
       // Fallback expert reply

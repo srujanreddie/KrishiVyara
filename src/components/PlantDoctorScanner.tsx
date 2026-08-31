@@ -100,23 +100,26 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
         })
       });
 
-      const data = await res.json();
-      if (data.success && data.scanResult) {
-        const result: CropScanResult = {
-          ...data.scanResult,
-          imageUrl: base64Image || imageUrl || data.scanResult.imageUrl,
-          source: data.source || 'gemini-ai'
-        };
-        setScanResult(result);
-        onScanComplete(result);
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data.success && data.scanResult) {
+          const result: CropScanResult = {
+            ...data.scanResult,
+            imageUrl: base64Image || imageUrl || data.scanResult.imageUrl,
+            source: data.source || 'gemini-ai'
+          };
+          setScanResult(result);
+          onScanComplete(result);
 
-        // Auto read-aloud if enabled in user profile
-        if (userProfile.voiceAutoRead && result.audioSummaryText) {
-          handleSpeak(result.audioSummaryText);
+          // Auto read-aloud if enabled in user profile
+          if (userProfile.voiceAutoRead && result.audioSummaryText) {
+            handleSpeak(result.audioSummaryText);
+          }
+          return;
         }
-      } else {
-        throw new Error(data.error || 'Diagnosis failed');
       }
+      throw new Error('Diagnosis response was not valid JSON');
     } catch (err: any) {
       console.warn('API call issue, using instant agronomic fallback:', err);
       
