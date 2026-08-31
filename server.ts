@@ -3,6 +3,10 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { db } from './src/db/index.ts';
+import { users, diaryEntries, cropScans } from './src/db/schema.ts';
+import { eq, desc } from 'drizzle-orm';
 
 dotenv.config();
 
@@ -1525,9 +1529,160 @@ function generateFallbackExpertReply(userMsg?: string, scanContext?: any, lang: 
 }
 
 // ==========================================
+// Cloud SQL Database API Endpoints
+// ==========================================
+
+// Helper to get or create user by Firebase UID
+async function getOrCreateDbUser(uid: string, email: string = 'farmer@krishiveyra.com') {
+  const existing = await db.select().from(users).where(eq(users.uid, uid));
+  if (existing.length > 0) {
+    return existing[0];
+  }
+  const inserted = await db.insert(users).values({
+    uid,
+    email,
+  }).returning();
+  return inserted[0];
+}
+
+app.get('/api/user/profile', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user!.uid;
+    const email = req.user!.email || 'farmer@krishiveyra.com';
+    const dbUser = await getOrCreateDbUser(uid, email);
+    res.json({ profile: dbUser.profileData || null });
+  } catch (error: any) {
+    console.error('Failed to fetch user profile:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch profile' });
+  }
+});
+
+app.post('/api/user/profile', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user!.uid;
+    const email = req.user!.email || 'farmer@krishiveyra.com';
+    const profile = req.body;
+    const dbUser = await getOrCreateDbUser(uid, email);
+    
+    await db.update(users)
+      .set({ profileData: profile })
+      .where(eq(users.id, dbUser.id));
+
+    res.json({ success: true, profile });
+  } catch (error: any) {
+    console.error('Failed to save user profile:', error);
+    res.status(500).json({ error: error.message || 'Failed to save profile' });
+  }
+});
+
+app.get('/api/diary', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user!.uid;
+    const dbUser = await db.select().from(users).where(eq(users.uid, uid));
+    if (dbUser.length === 0) {
+      return res.json([]);
+    }
+    const entries = await db.select().from(diaryEntries).where(eq(diaryEntries.userId, dbUser[0].id)).orderBy(desc(diaryEntries.createdAt));
+    res.json(entries);
+  } catch (error: any) {
+    console.error('Failed to fetch diary entries:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch diary entries' });
+  }
+});
+
+app.post('/api/diary', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user!.uid;
+    const email = req.user!.email || 'farmer@krishiveyra.com';
+    const dbUser = await getOrCreateDbUser(uid, email);
+    const entry = req.body;
+
+    // Upsert or insert diary entry
+    const existing = await db.select().from(diaryEntries).where(eq(diaryEntries.entryId, entry.id));
+    if (existing.length > 0) {
+      await db.update(diaryEntries).set({
+        cropName: entry.cropName,
+        plotName: entry.plotName,
+        activityType: entry.activityType,
+        date: entry.date,
+        time: entry.time,
+        notes: entry.notes,
+        quantity: entry.quantity,
+        unit: entry.unit,
+        chemicalUsed: entry.chemicalUsed,
+        cost: entry.cost,
+        imageUrl: entry.imageUrl,
+        status: entry.status,
+      }).where(eq(diaryEntries.entryId, entry.id));
+    } else {
+      await db.insert(diaryEntries).values({
+        userId: dbUser.id,
+        entryId: entry.id,
+        cropName: entry.cropName,
+        plotName: entry.plotName,
+        activityType: entry.activityType,
+        date: entry.date,
+        time: entry.time,
+        notes: entry.notes,
+        quantity: entry.quantity,
+        unit: entry.unit,
+        chemicalUsed: entry.chemicalUsed,
+        cost: entry.cost,
+        imageUrl: entry.imageUrl,
+        status: entry.status,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to save diary entry:', error);
+    res.status(500).json({ error: error.message || 'Failed to save diary entry' });
+  }
+});
+
+app.get('/api/scans', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user!.uid;
+    const dbUser = await db.select().from(users).where(eq(users.uid, uid));
+    if (dbUser.length === 0) {
+      return res.json([]);
+    }
+    const scans = await db.select().from(cropScans).where(eq(cropScans.userId, dbUser[0].id)).orderBy(desc(cropScans.createdAt));
+    res.json(scans.map(s => s.scanData));
+  } catch (error: any) {
+    console.error('Failed to fetch crop scans:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch crop scans' });
+  }
+});
+
+app.post('/api/scans', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user!.uid;
+    const email = req.user!.email || 'farmer@krishiveyra.com';
+    const dbUser = await getOrCreateDbUser(uid, email);
+    const scan = req.body;
+
+    const existing = await db.select().from(cropScans).where(eq(cropScans.scanId, scan.id));
+    if (existing.length === 0) {
+      await db.insert(cropScans).values({
+        userId: dbUser.id,
+        scanId: scan.id,
+        cropName: scan.cropName,
+        diseaseName: scan.diseaseOrPestName,
+        severity: scan.severity,
+        confidenceScore: scan.confidenceScore,
+        scanData: scan,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to save crop scan:', error);
+    res.status(500).json({ error: error.message || 'Failed to save crop scan' });
+  }
+});
 
 // ==========================================
-// Firebase Config Serving
 // ==========================================
 app.get('/firebase-applet-config.json', (req, res) => {
   res.sendFile(path.join(process.cwd(), 'firebase-applet-config.json'));

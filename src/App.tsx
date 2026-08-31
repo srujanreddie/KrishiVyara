@@ -74,29 +74,43 @@ export default function App() {
     localStorage.setItem('krishiveyra_guest', 'true');
   };
 
-  // Sync profile with Firestore
+  // Sync profile with Cloud SQL API
   useEffect(() => {
     if (!firebaseUser) return;
-    const db = getFirebaseDb();
-    const userRef = doc(db, 'users', firebaseUser.uid);
-    const unsubscribe = onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setUserProfileState({ ...initialUserProfile, ...docSnap.data(), id: firebaseUser.uid });
-      } else {
-        // Initialize profile in DB
-        setDoc(userRef, { ...initialUserProfile, id: firebaseUser.uid }, { merge: true });
+    async function fetchProfile() {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const res = await fetch('/api/user/profile', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.profile) {
+            setUserProfileState({ ...initialUserProfile, ...data.profile, id: firebaseUser.uid });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch Cloud SQL profile:', err);
       }
-    });
-    return () => unsubscribe();
+    }
+    fetchProfile();
   }, [firebaseUser]);
 
-  // Wrapper for setUserProfile to save to Firestore
+  // Wrapper for setUserProfile to save to Cloud SQL API
   const setUserProfile = (updater: any) => {
     setUserProfileState(prev => {
       const nextProfile = typeof updater === 'function' ? updater(prev) : updater;
       if (firebaseUser) {
-        const db = getFirebaseDb();
-        setDoc(doc(db, 'users', firebaseUser.uid), nextProfile, { merge: true });
+        firebaseUser.getIdToken().then(token => {
+          fetch('/api/user/profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(nextProfile)
+          }).catch(err => console.error('Failed to save profile to Cloud SQL:', err));
+        });
       } else {
         localStorage.setItem('krishiveyra_profile', JSON.stringify(nextProfile));
       }
@@ -181,21 +195,40 @@ export default function App() {
   
   const [diaryEntries, setDiaryEntriesState] = useState<FarmDiaryEntry[]>(initialDiaryEntries);
 
-  // Sync diary entries from Firestore
+  // Sync diary entries from Cloud SQL API
   useEffect(() => {
     if (!firebaseUser) return;
-    const db = getFirebaseDb();
-    const q = query(collection(db, 'diaryEntries'), where('userId', '==', firebaseUser.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const entries: FarmDiaryEntry[] = [];
-      snapshot.forEach(doc => {
-        entries.push(doc.data() as FarmDiaryEntry);
-      });
-      // Sort descending by date/time
-      entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setDiaryEntriesState(entries);
-    });
-    return () => unsubscribe();
+    async function fetchDiary() {
+      try {
+        const token = await firebaseUser.getIdToken();
+        const res = await fetch('/api/diary', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const entries = await res.json();
+          setDiaryEntriesState(entries.map((e: any) => ({
+            id: e.entryId,
+            userId: firebaseUser.uid,
+            cropName: e.cropName,
+            plotName: e.plotName,
+            activityType: e.activityType,
+            date: e.date,
+            time: e.time,
+            notes: e.notes,
+            quantity: e.quantity,
+            unit: e.unit,
+            chemicalUsed: e.chemicalUsed,
+            cost: e.cost,
+            imageUrl: e.imageUrl,
+            status: e.status,
+            createdAt: e.createdAt
+          })));
+        }
+      } catch (err) {
+        console.error('Failed to fetch Cloud SQL diary:', err);
+      }
+    }
+    fetchDiary();
   }, [firebaseUser]);
 
 
@@ -213,6 +246,18 @@ export default function App() {
   const handleScanComplete = (scan: CropScanResult) => {
     setLatestScan(scan);
     setMedicineActiveScan(scan);
+    if (firebaseUser) {
+      firebaseUser.getIdToken().then(token => {
+        fetch('/api/scans', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(scan)
+        }).catch(err => console.error('Failed to save scan to Cloud SQL:', err));
+      });
+    }
   };
 
   
@@ -232,8 +277,36 @@ export default function App() {
       createdAt: new Date().toISOString()
     };
     if (firebaseUser) {
-      const db = getFirebaseDb();
-      setDoc(doc(db, 'diaryEntries', newEntry.id), newEntry);
+      firebaseUser.getIdToken().then(token => {
+        fetch('/api/diary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(newEntry)
+        }).then(() => fetch('/api/diary', { headers: { 'Authorization': `Bearer ${token}` } }))
+          .then(res => res.json())
+          .then(entries => {
+            setDiaryEntriesState(entries.map((e: any) => ({
+              id: e.entryId,
+              userId: firebaseUser.uid,
+              cropName: e.cropName,
+              plotName: e.plotName,
+              activityType: e.activityType,
+              date: e.date,
+              time: e.time,
+              notes: e.notes,
+              quantity: e.quantity,
+              unit: e.unit,
+              chemicalUsed: e.chemicalUsed,
+              cost: e.cost,
+              imageUrl: e.imageUrl,
+              status: e.status,
+              createdAt: e.createdAt
+            })));
+          }).catch(err => console.error('Failed to sync diary to Cloud SQL:', err));
+      });
     } else {
       setDiaryEntriesState(prev => [newEntry, ...prev]);
     }
@@ -261,8 +334,36 @@ export default function App() {
     };
 
     if (firebaseUser) {
-      const db = getFirebaseDb();
-      setDoc(doc(db, 'diaryEntries', newEntry.id), newEntry);
+      firebaseUser.getIdToken().then(token => {
+        fetch('/api/diary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(newEntry)
+        }).then(() => fetch('/api/diary', { headers: { 'Authorization': `Bearer ${token}` } }))
+          .then(res => res.json())
+          .then(entries => {
+            setDiaryEntriesState(entries.map((e: any) => ({
+              id: e.entryId,
+              userId: firebaseUser.uid,
+              cropName: e.cropName,
+              plotName: e.plotName,
+              activityType: e.activityType,
+              date: e.date,
+              time: e.time,
+              notes: e.notes,
+              quantity: e.quantity,
+              unit: e.unit,
+              chemicalUsed: e.chemicalUsed,
+              cost: e.cost,
+              imageUrl: e.imageUrl,
+              status: e.status,
+              createdAt: e.createdAt
+            })));
+          }).catch(err => console.error('Failed to sync diary to Cloud SQL:', err));
+      });
     } else {
       setDiaryEntriesState(prev => [newEntry, ...prev]);
     }
