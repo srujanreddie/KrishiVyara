@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserProfile, LanguageCode, CurrentWeatherState } from '../types';
 import { translations } from '../data/translations';
+import { translateWeatherCondition } from '../utils/i18n';
 import { 
   Sprout, 
   Volume2, 
@@ -56,6 +57,8 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const translatedCondition = translateWeatherCondition(weather.condition, userProfile.languagePreference);
+
   return (
     <header className={`sticky top-0 z-40 border-b transition-colors ${
       userProfile.highContrastMode 
@@ -100,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
             : 'bg-emerald-800/80 text-emerald-50 border border-emerald-600/40 shadow-inner'
         }`}>
           <CloudSun className="w-4 h-4 text-amber-300 shrink-0" />
-          <span>{weather.temperature}°C • {weather.condition}</span>
+          <span>{weather.temperature}°C • {translatedCondition}</span>
           <span className="opacity-40">|</span>
           <span className={`flex items-center gap-1 ${
             weather.isRainImminent ? 'text-rose-300 font-black' : 'text-emerald-200 font-bold'
@@ -108,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
             {weather.isRainImminent ? (
               <>
                 <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                Rain Risk!
+                {t.rainRiskChip}
               </>
             ) : (
               t.safeToSprayChip
@@ -140,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-yellow-400 text-black ring-2 ring-white'
                 : 'bg-emerald-800/80 hover:bg-emerald-800 text-emerald-100 border border-emerald-600/40 shadow-sm'
             }`}
-            title="Toggle High Contrast for outdoor bright sunlight"
+            title={userProfile.highContrastMode ? t.sunModeOn : t.sunMode}
             aria-label="High contrast sunlight mode"
           >
             {userProfile.highContrastMode ? (
@@ -187,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-yellow-400 text-black'
                 : 'bg-white text-emerald-700 hover:bg-emerald-50 shadow-md'
             }`}
-            title="Farmer Profile & Settings"
+            title={t.farmerProfileSettings}
           >
             {userProfile.avatarUrl ? (
               <img src={userProfile.avatarUrl} alt="Avatar" className="w-5 h-5 rounded-full object-cover border border-current" referrerPolicy="no-referrer" />

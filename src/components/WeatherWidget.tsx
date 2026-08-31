@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { UserProfile, CurrentWeatherState, WeatherForecastDay } from '../types';
 import { translations } from '../data/translations';
 import { 
+  translateDay, 
+  translateWeatherCondition, 
+  translateSpraySuitability 
+} from '../utils/i18n';
+import { 
   CloudSunRain, 
   CloudRain, 
   Sun, 
@@ -43,6 +48,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
   locatingStage = ''
 }) => {
   const t = translations[userProfile.languagePreference] || translations.en;
+  const lang = userProfile.languagePreference;
 
   const [selectedDay, setSelectedDay] = useState<WeatherForecastDay>(weather.forecast[0]);
   const [simulationMode, setSimulationMode] = useState<'normal' | 'rain' | 'heat'>('normal');
@@ -67,9 +73,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
           {
             type: 'rain_wash',
             severity: 'danger',
-            title: '🚨 DANGER: Heavy Rain within 2.5 Hours!',
-            description: 'Do NOT apply any foliar spray or pesticide today. Downpour will wash the chemicals off leaves into groundwater, wasting your money and harming soil biology.',
-            actionNeeded: 'Postpone all chemical spraying until tomorrow afternoon.'
+            title: `🚨 ${t.rainWashHeading}`,
+            description: t.rainWashDesc,
+            actionNeeded: t.postponeSprayingAction
           }
         ]
       }));
@@ -85,9 +91,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
           {
             type: 'heat_pest_spike',
             severity: 'warning',
-            title: '🔥 HEAT SPIKE ALARM: 39°C Temperature Spike!',
-            description: 'Extreme heat accelerates the reproduction cycle of Thrips, Whiteflies, and Red Spider Mites by 40%.',
-            actionNeeded: 'Inspect undersides of crop leaves in the morning and ensure soil moisture via drip irrigation.'
+            title: `🔥 ${t.heatSpikeHeading}`,
+            description: t.heatSpikeDesc,
+            actionNeeded: t.heatActionNeeded
           }
         ]
       }));
@@ -103,9 +109,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
           {
             type: 'optimal_spray',
             severity: 'info',
-            title: '🌤️ Favorable Evening Spray Window Available',
-            description: 'Wind speeds below 10 km/h with dry conditions until midnight. Ideal spraying time: 4:30 PM - 6:30 PM.',
-            actionNeeded: 'Prepare spray tank solution before 4:00 PM.'
+            title: `🌤️ ${t.favorableWindowHeading}`,
+            description: t.favorableWindowDesc,
+            actionNeeded: t.prepareSolutionAction
           }
         ]
       }));
@@ -124,7 +130,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="px-3 py-1 rounded-full bg-white/20 text-xs font-black uppercase tracking-wider text-sky-100">
-                Field Radar
+                {t.fieldRadarTitle}
               </span>
               <span className="text-xs text-sky-200 font-bold">
                 {weather.locationName}
@@ -134,12 +140,12 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
               {t.weatherTitle}
             </h2>
             <p className="text-xs sm:text-sm text-sky-100 mt-0.5 font-medium">
-              Live agro-climatic forecasting with spraying suitability indicators
+              {t.weatherSubtitle}
             </p>
           </div>
 
           <button
-            onClick={() => handleSpeak(`${weather.dangerAlerts[0]?.title || 'Weather report'}. ${weather.dangerAlerts[0]?.description || ''}`)}
+            onClick={() => handleSpeak(`${weather.dangerAlerts[0]?.title || t.weatherTitle}. ${weather.dangerAlerts[0]?.description || ''}`)}
             className="p-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 shadow-md font-black text-xs flex items-center gap-2 shrink-0 active:scale-95 transition"
             title={t.speakText}
           >
@@ -169,11 +175,11 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
                     : 'bg-slate-200 text-slate-700'
                 }`}>
-                  {weather.isAutoDetected ? '📍 GPS Satellite Verified' : '📍 Farm Location'}
+                  {weather.isAutoDetected ? `📍 ${t.gpsVerified}` : `📍 ${t.farmLocationLabel}`}
                 </span>
                 {weather.locationAccuracyMeters && (
                   <span className="text-[10px] font-bold text-slate-500">
-                    Accuracy: ±{weather.locationAccuracyMeters}m
+                    {t.accuracyLabel}: ±{weather.locationAccuracyMeters}m
                   </span>
                 )}
               </div>
@@ -183,7 +189,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
               {(weather.latitude || weather.longitude) && (
                 <p className="text-xs font-mono text-slate-500 mt-0.5">
                   Coords: {weather.latitude?.toFixed(4)}°N, {weather.longitude?.toFixed(4)}°E
-                  {weather.lastUpdatedTime && ` • Synced at ${weather.lastUpdatedTime}`}
+                  {weather.lastUpdatedTime && ` • ${t.syncedAtLabel} ${weather.lastUpdatedTime}`}
                 </p>
               )}
             </div>
@@ -205,10 +211,10 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
               <span>
                 {isLocating 
                   ? (locatingStage === 'locating_gps' 
-                      ? 'Acquiring GPS Satellite...' 
+                      ? t.acquiringGps 
                       : locatingStage === 'reverse_geocoding' 
-                      ? 'Resolving District...' 
-                      : 'Syncing Radar...')
+                      ? t.resolvingDistrict 
+                      : t.syncingRadar)
                   : t.autoDetectLocation}
               </span>
             </button>
@@ -218,7 +224,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         {isLocating && (
           <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-2.5 text-xs text-emerald-900 font-bold animate-pulse">
             <Compass className="w-4 h-4 text-emerald-600 animate-spin" />
-            <span>Scanning local agricultural meteorological station for field coordinates...</span>
+            <span>{t.scanningWeatherStation}</span>
           </div>
         )}
       </div>
@@ -228,7 +234,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-amber-600 stroke-[2.5]" />
           <span className="text-xs font-black text-slate-800">
-            Simulate Weather Alarms:
+            {t.simulateWeatherAlarms}:
           </span>
         </div>
 
@@ -242,7 +248,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
                 : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
             }`}
           >
-            🌤️ Normal Clear
+            🌤️ {t.normalClearSim}
           </button>
 
           <button
@@ -254,7 +260,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
                 : 'bg-white text-rose-800 border border-rose-300 hover:bg-rose-50'
             }`}
           >
-            🌧️ Rain Wash Alarm
+            🌧️ {t.rainWashAlarmSim}
           </button>
 
           <button
@@ -266,7 +272,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
                 : 'bg-white text-amber-800 border border-amber-300 hover:bg-amber-50'
             }`}
           >
-            🔥 Heat Spike Alarm
+            🔥 {t.heatSpikeAlarmSim}
           </button>
         </div>
       </div>
@@ -314,7 +320,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
                     <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
                       alert.severity === 'danger' ? 'bg-rose-200 text-rose-900' : 'bg-amber-200 text-amber-900'
                     }`}>
-                      {alert.severity === 'danger' ? 'CRITICAL ACTION' : 'ADVISORY'}
+                      {alert.severity === 'danger' ? t.criticalActionLabel : t.advisoryLabel}
                     </span>
                   </div>
 
@@ -328,14 +334,14 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
 
                   <div className="pt-2">
                     <div className="p-3.5 rounded-2xl bg-white/95 border border-slate-200 text-xs font-bold text-slate-900 shadow-sm">
-                      👉 <strong className="font-black">Recommended Action:</strong> {alert.actionNeeded}
+                      👉 <strong className="font-black">{t.recommendedAction}:</strong> {alert.actionNeeded}
                     </div>
                   </div>
                 </div>
               </div>
 
               <button
-                onClick={() => handleSpeak(`${alert.title}. ${alert.description}. Action: ${alert.actionNeeded}`)}
+                onClick={() => handleSpeak(`${alert.title}. ${alert.description}. ${t.recommendedAction}: ${alert.actionNeeded}`)}
                 className="p-3 rounded-2xl bg-white shadow-sm border border-slate-200 text-slate-800 hover:bg-slate-50 shrink-0 active:scale-95 transition"
               >
                 <Volume2 className="w-4 h-4 text-emerald-700" />
@@ -352,7 +358,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         }`}>
           <div className="text-2xl mb-1">🌡️</div>
           <div className="text-xl font-black text-slate-900">{weather.temperature}°C</div>
-          <div className="text-xs text-slate-500 font-bold">Temperature</div>
+          <div className="text-xs text-slate-500 font-bold">{t.temperatureLabel}</div>
         </div>
 
         <div className={`p-5 rounded-3xl border text-center shadow-sm ${
@@ -360,7 +366,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         }`}>
           <div className="text-2xl mb-1">💧</div>
           <div className="text-xl font-black text-slate-900">{weather.humidity}%</div>
-          <div className="text-xs text-slate-500 font-bold">Relative Humidity</div>
+          <div className="text-xs text-slate-500 font-bold">{t.humidityLabel}</div>
         </div>
 
         <div className={`p-5 rounded-3xl border text-center shadow-sm ${
@@ -368,7 +374,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         }`}>
           <div className="text-2xl mb-1">🌧️</div>
           <div className="text-xl font-black text-slate-900">{weather.rainProbabilityNext4h}%</div>
-          <div className="text-xs text-slate-500 font-bold">Rain Probability</div>
+          <div className="text-xs text-slate-500 font-bold">{t.rainProbabilityLabel}</div>
         </div>
 
         <div className={`p-5 rounded-3xl border text-center shadow-sm ${
@@ -376,7 +382,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         }`}>
           <div className="text-2xl mb-1">💨</div>
           <div className="text-xl font-black text-slate-900">{weather.windSpeedKmh} km/h</div>
-          <div className="text-xs text-slate-500 font-bold">Wind Speed</div>
+          <div className="text-xs text-slate-500 font-bold">{t.windSpeedLabel}</div>
         </div>
       </div>
 
@@ -387,60 +393,66 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div>
             <h3 className="text-base sm:text-lg font-black text-slate-900 font-['Outfit']">
-              7-Day Spray Suitability Forecast
+              {t.weeklyForecastHeading}
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              Color-coded index tells you exact days when spraying chemicals is safe
+              {t.weeklyForecastSubtitle}
             </p>
           </div>
           <Calendar className="w-5 h-5 text-emerald-600 stroke-[2.5]" />
         </div>
 
         <div className="space-y-2.5">
-          {weather.forecast.map((day, idx) => (
-            <div
-              key={idx}
-              onClick={() => setSelectedDay(day)}
-              className={`p-4 rounded-3xl border transition cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
-                selectedDay.day === day.day
-                  ? 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-400 shadow-sm'
-                  : 'hover:bg-slate-50 border-slate-200 bg-white'
-              }`}
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 text-center">
-                  <div className="text-xs font-black text-slate-900">{day.day}</div>
-                  <div className="text-[10px] text-slate-500 font-bold">{day.date}</div>
+          {weather.forecast.map((day, idx) => {
+            const translatedDayName = translateDay(day.day, lang);
+            const translatedCond = translateWeatherCondition(day.condition, lang);
+            const suitability = translateSpraySuitability(day.spraySuitability, lang);
+
+            return (
+              <div
+                key={idx}
+                onClick={() => setSelectedDay(day)}
+                className={`p-4 rounded-3xl border transition cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                  selectedDay.day === day.day
+                    ? 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-400 shadow-sm'
+                    : 'hover:bg-slate-50 border-slate-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 text-center">
+                    <div className="text-xs font-black text-slate-900">{translatedDayName}</div>
+                    <div className="text-[10px] text-slate-500 font-bold">{day.date}</div>
+                  </div>
+
+                  <div className="text-2xl">
+                    {day.condition.includes('Rain') ? '🌧️' : day.condition.includes('Sun') ? '☀️' : '⛅'}
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-black text-slate-800">
+                      {translatedCond} • {day.tempMax}°C / {day.tempMin}°C
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium">
+                      {t.rainChanceLabel}: <strong className="text-slate-700">{day.rainProbability}%</strong> | {t.windSpeedLabel}: {day.windSpeedKmh} km/h
+                    </div>
+                  </div>
                 </div>
 
-                <div className="text-2xl">
-                  {day.condition.includes('Rain') ? '🌧️' : day.condition.includes('Sun') ? '☀️' : '⛅'}
-                </div>
-
-                <div>
-                  <div className="text-xs font-black text-slate-800">
-                    {day.condition} • {day.tempMax}°C / {day.tempMin}°C
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-medium">
-                    Rain Chance: <strong className="text-slate-700">{day.rainProbability}%</strong> | Wind: {day.windSpeedKmh} km/h
-                  </div>
+                {/* Spray Suitability Badge */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                  <span className={`px-3.5 py-1.5 rounded-2xl text-xs font-black uppercase tracking-wider ${
+                    day.spraySuitability === 'excellent'
+                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      : day.spraySuitability === 'danger'
+                      ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                      : 'bg-amber-100 text-amber-900 border border-amber-300'
+                  }`}>
+                    {suitability.icon} {suitability.label}
+                  </span>
                 </div>
               </div>
-
-              {/* Spray Suitability Badge */}
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                <span className={`px-3.5 py-1.5 rounded-2xl text-xs font-black uppercase tracking-wider ${
-                  day.spraySuitability === 'excellent'
-                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                    : day.spraySuitability === 'danger'
-                    ? 'bg-rose-100 text-rose-900 border border-rose-300'
-                    : 'bg-amber-100 text-amber-900 border border-amber-300'
-                }`}>
-                  {day.spraySuitability === 'excellent' ? '🟢 Safe to Spray' : day.spraySuitability === 'danger' ? '🔴 Do Not Spray' : '🟡 Caution'}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

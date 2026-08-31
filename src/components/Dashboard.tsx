@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserProfile, CropScanResult, CurrentWeatherState, FarmDiaryEntry } from '../types';
 import { translations } from '../data/translations';
+import { translateCrop, translateSeverity, translateWeatherCondition } from '../utils/i18n';
 import { ActiveTab } from './Navigation';
 import { SafeImage } from './SafeImage';
 import { 
@@ -49,6 +50,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   isLocating = false
 }) => {
   const t = translations[userProfile.languagePreference] || translations.en;
+  const lang = userProfile.languagePreference;
 
   const handleSpeak = (text: string) => {
     setIsAudioPlaying(true);
@@ -56,6 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const activeAlert = weather.dangerAlerts[0];
+  const translatedCrops = userProfile.primaryCrops.map(c => translateCrop(c, lang)).join(', ');
 
   return (
     <div className="space-y-5 pb-24">
@@ -74,7 +77,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </h1>
           <p className="text-emerald-50 font-medium text-xs sm:text-sm drop-shadow mt-0.5 flex items-center gap-1.5">
             <Leaf className="w-3.5 h-3.5" />
-            {userProfile.primaryCrops.join(', ')} {t.farmLabel} • {userProfile.farmSizeAcres} {t.acres}
+            {translatedCrops} {t.farmLabel} • {userProfile.farmSizeAcres} {t.acres}
           </p>
         </div>
       </div>
@@ -130,7 +133,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     }}
                     disabled={isLocating}
                     className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/90 hover:bg-white text-slate-800 border border-slate-300 text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
-                    title="Tap to Auto-Detect Field Location via GPS"
+                    title={t.locatingGps}
                   >
                     <MapPin className={`w-3 h-3 text-emerald-700 ${isLocating ? 'animate-bounce' : ''}`} />
                     <span>{isLocating ? t.locatingGps : weather.locationName}</span>
@@ -157,7 +160,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <button
             id="speak-weather-btn"
-            onClick={() => handleSpeak(`${activeAlert?.title || 'Weather update'}. ${activeAlert?.description || ''}`)}
+            onClick={() => handleSpeak(`${activeAlert?.title || (weather.isRainImminent ? t.rainWashAlert : t.safeToSprayText)}. ${activeAlert?.description || t.optimalConditions}`)}
             className="p-2.5 rounded-2xl bg-white/90 hover:bg-white shadow-sm border border-slate-200 shrink-0 text-slate-700 active:scale-95 transition"
             title={t.speakText}
           >
@@ -355,7 +358,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </h3>
             </div>
             <button
-              onClick={() => handleSpeak(latestScan.audioSummaryText || `${latestScan.cropName}: ${latestScan.diseaseOrPestName}`)}
+              onClick={() => handleSpeak(latestScan.audioSummaryText || `${translateCrop(latestScan.cropName, lang)}: ${latestScan.diseaseOrPestName}`)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-black transition"
             >
               <Volume2 className="w-4 h-4 text-emerald-700" />
@@ -377,7 +380,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800">
-                  {latestScan.cropName}
+                  {translateCrop(latestScan.cropName, lang)}
                 </span>
                 <span className={`text-xs font-black px-2.5 py-1 rounded-lg uppercase ${
                   latestScan.severity === 'severe' 
@@ -386,7 +389,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     ? 'bg-amber-100 text-amber-800'
                     : 'bg-emerald-100 text-emerald-800'
                 }`}>
-                  {latestScan.severity} {t.severityLevel}
+                  {translateSeverity(latestScan.severity, lang).label}
                 </span>
                 <span className="text-xs text-slate-500 font-bold">
                   {latestScan.confidenceScore}% {t.aiConfidence}

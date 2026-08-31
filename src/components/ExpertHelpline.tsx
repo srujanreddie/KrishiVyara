@@ -7,6 +7,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { UserProfile, CropScanResult, ExpertChatMessage, AgronomistExpert } from '../types';
 import { translations } from '../data/translations';
 import { agronomistExperts } from '../data/mockData';
+import { translateCrop } from '../utils/i18n';
 import { SafeImage } from './SafeImage';
 import { 
   Headset, 
@@ -41,15 +42,33 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
   const t = translations[userProfile.languagePreference] || translations.en;
   
   const [selectedExpert, setSelectedExpert] = useState<AgronomistExpert>(agronomistExperts[0]);
-  const [messages, setMessages] = useState<ExpertChatMessage[]>([
-    {
-      id: 'msg-welcome',
-      sender: 'expert',
-      text: `नमस्ते ${userProfile.name}! मैं ${selectedExpert.name} (कृषि विज्ञान केंद्र) हूँ। आपकी फसल में जो भी समस्या या बीमारी दिख रही है, आप मुझे बोलकर या फोटो भेजकर पूछ सकते हैं।`,
-      timestamp: '10:00 AM',
-      status: 'delivered'
-    }
-  ]);
+  const [messages, setMessages] = useState<ExpertChatMessage[]>(() => {
+    const defaultWelcome = userProfile.languagePreference === 'hi'
+      ? `नमस्ते ${userProfile.name}! मैं कृषि विज्ञान केंद्र (KVK) से हूँ। आपकी फसल में जो भी बीमारी या कीट दिख रहा है, आप मुझे बोलकर या फोटो भेजकर पूछ सकते हैं।`
+      : userProfile.languagePreference === 'mr'
+      ? `नमस्कार ${userProfile.name}! मी कृषी विज्ञान केंद्रातून बोलत आहे. पिकावरील रोग किंवा किडीबद्दल आपण बोलून किंवा फोटो पाठवून विचारू शकता.`
+      : userProfile.languagePreference === 'pa'
+      ? `ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ${userProfile.name}! ਮੈਂ ਕ੍ਰਿਸ਼ੀ ਵਿਗਿਆਨ ਕੇਂਦਰ ਤੋਂ ਹਾਂ। ਫਸਲ ਦੀ ਕਿਸੇ ਵੀ ਬਿਮਾਰੀ ਬਾਰੇ ਬੋਲ ਕੇ ਜਾਂ ਫੋਟੋ ਭੇਜ ਕੇ ਪੁੱਛ ਸਕਦੇ ਹੋ।`
+      : userProfile.languagePreference === 'te'
+      ? `నమస్తే ${userProfile.name}! నేను కృషి విజ్ఞాన కేంద్రం నిపుణుడను. మీ పంట తెగులు లేదా పురుగు గురించి ఫోటో పంపి లేదా మాట్లాడి అడగండి.`
+      : userProfile.languagePreference === 'bn'
+      ? `নমস্কার ${userProfile.name}! আমি কৃষি বিজ্ঞান কেন্দ্রের বিশেষজ্ঞ। ফসলের রোগ বা পোকা সম্পর্কে ছবি পাঠিয়ে বা ভয়েস বার্তায় পরামর্শ নিন।`
+      : userProfile.languagePreference === 'es'
+      ? `¡Hola ${userProfile.name}! Soy su agrónomo del Centro Agrícola. Puede consultar cualquier síntoma o plaga por voz o enviando una foto.`
+      : userProfile.languagePreference === 'sw'
+      ? `Habari ${userProfile.name}! Mimi ni mtaalamu wa kilimo. Unaweza kuuliza kuhusu magonjwa ya mazao kwa sauti au kwa kutuma picha.`
+      : `Hello ${userProfile.name}! I am an Agronomist from Krishi Vigyan Kendra. Ask any crop health questions or send photo attachments for instant advice.`;
+
+    return [
+      {
+        id: 'msg-welcome',
+        sender: 'expert',
+        text: defaultWelcome,
+        timestamp: '10:00 AM',
+        status: 'delivered'
+      }
+    ];
+  });
 
   
   const [userId, setUserId] = useState<string | null>(null);
@@ -217,7 +236,7 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="px-3 py-1 rounded-full bg-white/20 text-xs font-black uppercase tracking-wider text-indigo-100">
-                Kisan Helpline
+                {t.kisanTollFree}
               </span>
               <span className="text-xs text-indigo-200 font-bold">
                 Krishi Vigyan Kendra (KVK) Network
@@ -245,7 +264,7 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
       {/* Agronomist Expert Switcher Cards */}
       <div>
         <span className="text-xs font-black uppercase tracking-wider text-slate-500 px-1 block mb-2">
-          Available Agricultural Scientists:
+          {t.selectExpert}
         </span>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {agronomistExperts.map((exp) => (
@@ -283,7 +302,7 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
                   {exp.specialization}
                 </p>
                 <div className="text-[10px] font-black text-indigo-700 mt-0.5">
-                  ★ {exp.rating} • {exp.experienceYears} yrs exp
+                  ★ {exp.rating} • {exp.experienceYears} {t.years} {t.experience}
                 </div>
               </div>
             </div>
@@ -310,10 +329,10 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
             <div>
               <div className="text-xs font-black text-slate-900 flex items-center gap-1.5 font-['Outfit']">
                 <span>{selectedExpert.name}</span>
-                <span className="text-[10px] font-black text-emerald-600">● Online</span>
+                <span className="text-[10px] font-black text-emerald-600">● {t.online}</span>
               </div>
               <p className="text-[10px] text-slate-500 font-medium">
-                Languages: {selectedExpert.languages.join(', ')}
+                {t.languagesSpoken}: {selectedExpert.languages.join(', ')}
               </p>
             </div>
           </div>
@@ -330,7 +349,7 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
                 title="Include latest plant scan in message"
               >
                 <Paperclip className="w-3.5 h-3.5" />
-                <span>{attachCurrentScan ? 'Scan Attached' : 'Attach Scan'}</span>
+                <span>{attachCurrentScan ? `✓ ${t.attachCurrentScan}` : t.attachCurrentScan}</span>
               </button>
             )}
           </div>
@@ -459,18 +478,18 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
 
             <div>
               <h3 className="text-lg font-black text-slate-900 font-['Outfit']">
-                Government Kisan Call Center
+                {t.callExpertModalTitle}
               </h3>
               <p className="text-xs text-slate-500 mt-1 font-medium">
-                Toll-Free 24x7 Agronomy Assistance
+                {t.kisanTollFree}
               </p>
               <div className="text-xl font-black text-emerald-700 mt-2 font-mono tracking-wide">
-                1800-180-1551
+                {t.tollFreeNumber}
               </div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
-              Free call connects you immediately with local agricultural scientists in Hindi, Marathi, Punjabi, Telugu, Bengali, etc.
+              {t.languagesSpoken}: Hindi, Marathi, Punjabi, Telugu, Bengali, English & regional dialects.
             </div>
 
             <div className="flex items-center gap-2.5 pt-2">
@@ -478,7 +497,7 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
                 onClick={() => setCallModalOpen(false)}
                 className="flex-1 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs transition"
               >
-                Close
+                {t.close}
               </button>
 
               <a
@@ -487,7 +506,7 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
                 className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 transition"
               >
                 <Phone className="w-4 h-4" />
-                <span>Dial Now</span>
+                <span>{t.callNowBtn}</span>
               </a>
             </div>
           </div>

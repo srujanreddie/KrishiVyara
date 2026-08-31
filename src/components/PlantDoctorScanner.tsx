@@ -2,6 +2,13 @@ import React, { useState, useRef } from 'react';
 import { UserProfile, CropScanResult } from '../types';
 import { translations } from '../data/translations';
 import { sampleDiseases } from '../data/mockData';
+import { 
+  translateCrop, 
+  translateSeverity, 
+  translatePathogen, 
+  translateInfectionStage, 
+  translateSpreadRisk 
+} from '../utils/i18n';
 import { ActiveTab } from './Navigation';
 import { SafeImage } from './SafeImage';
 import { 
@@ -31,18 +38,18 @@ interface PlantDoctorScannerProps {
   setIsAudioPlaying: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const cropList = [
-  { id: 'auto', label: 'Auto-Detect from Photo', icon: '✨' },
-  { id: 'Tomato', label: 'Tomato', icon: '🍅' },
-  { id: 'Potato', label: 'Potato', icon: '🥔' },
-  { id: 'Cotton', label: 'Cotton', icon: '🌿' },
-  { id: 'Rice', label: 'Rice (Paddy)', icon: '🌾' },
-  { id: 'Wheat', label: 'Wheat', icon: '🌾' },
-  { id: 'Corn', label: 'Corn (Maize)', icon: '🌽' },
-  { id: 'Chili', label: 'Chili', icon: '🌶️' },
-  { id: 'Onion', label: 'Onion', icon: '🧅' },
-  { id: 'Soybean', label: 'Soybean', icon: '🫘' },
-  { id: 'Sugarcane', label: 'Sugarcane', icon: '🎋' }
+const rawCropList = [
+  { id: 'auto', nameKey: 'Auto-Detect', icon: '✨' },
+  { id: 'Tomato', nameKey: 'Tomato', icon: '🍅' },
+  { id: 'Potato', nameKey: 'Potato', icon: '🥔' },
+  { id: 'Cotton', nameKey: 'Cotton', icon: '🌿' },
+  { id: 'Rice', nameKey: 'Rice', icon: '🌾' },
+  { id: 'Wheat', nameKey: 'Wheat', icon: '🌾' },
+  { id: 'Corn', nameKey: 'Corn', icon: '🌽' },
+  { id: 'Chili', nameKey: 'Chili', icon: '🌶️' },
+  { id: 'Onion', nameKey: 'Onion', icon: '🧅' },
+  { id: 'Soybean', nameKey: 'Soybean', icon: '🫘' },
+  { id: 'Sugarcane', nameKey: 'Sugarcane', icon: '🎋' }
 ];
 
 export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
@@ -53,6 +60,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
   setIsAudioPlaying
 }) => {
   const t = translations[userProfile.languagePreference] || translations.en;
+  const lang = userProfile.languagePreference;
   
   const [selectedCrop, setSelectedCrop] = useState<string>('auto');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -60,6 +68,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
   const [scanResult, setScanResult] = useState<CropScanResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
+  const [savedSuccessToast, setSavedSuccessToast] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -115,7 +124,6 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
       if (cropToSend) {
         matchingSample = sampleDiseases.find(d => d.cropName.toLowerCase().includes(cropToSend.toLowerCase())) || sampleDiseases[0];
       } else {
-        // Deterministic hash based on the image content so different images get distinct diagnoses!
         const imgStr = base64Image || imageUrl || 'default-sample';
         let hash = 0;
         for (let i = 0; i < Math.min(imgStr.length, 2000); i++) {
@@ -157,12 +165,25 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
   const handleSampleClick = (sample: CropScanResult) => {
     setSelectedCrop(sample.cropName);
     setSelectedImage(sample.imageUrl || null);
-    // Execute real AI vision analysis on the sample leaf image
     processImageScan(null, sample.imageUrl, sample.cropName);
+  };
+
+  const handleSaveDiary = (scan: CropScanResult) => {
+    onSaveToDiary(scan);
+    setSavedSuccessToast(true);
+    setTimeout(() => setSavedSuccessToast(false), 3500);
   };
 
   return (
     <div className="space-y-5 pb-24 max-w-4xl mx-auto">
+      {/* Toast Notification */}
+      {savedSuccessToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-700 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-black animate-bounce">
+          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+          <span>{t.savedToDiarySuccess}</span>
+        </div>
+      )}
+
       {/* Header Info */}
       <div className={`p-5 rounded-3xl border transition shadow-sm ${
         userProfile.highContrastMode
@@ -200,25 +221,28 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
           {t.selectCropLabel}
         </label>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {cropList.map((crop) => (
-            <button
-              key={crop.id}
-              id={`crop-chip-${crop.id}`}
-              onClick={() => setSelectedCrop(crop.id)}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-black whitespace-nowrap flex items-center gap-2 transition active:scale-95 shrink-0 ${
-                selectedCrop === crop.id
-                  ? userProfile.highContrastMode
-                    ? 'bg-yellow-400 text-black border-2 border-white font-black'
-                    : 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
-                  : userProfile.highContrastMode
-                  ? 'bg-zinc-900 border border-yellow-500 text-yellow-300'
-                  : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-800'
-              }`}
-            >
-              <span className="text-base">{crop.icon}</span>
-              <span>{crop.label}</span>
-            </button>
-          ))}
+          {rawCropList.map((crop) => {
+            const cropLabel = crop.id === 'auto' ? t.autoDetectCrop : translateCrop(crop.nameKey, lang);
+            return (
+              <button
+                key={crop.id}
+                id={`crop-chip-${crop.id}`}
+                onClick={() => setSelectedCrop(crop.id)}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-black whitespace-nowrap flex items-center gap-2 transition active:scale-95 shrink-0 ${
+                  selectedCrop === crop.id
+                    ? userProfile.highContrastMode
+                      ? 'bg-yellow-400 text-black border-2 border-white font-black'
+                      : 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
+                    : userProfile.highContrastMode
+                    ? 'bg-zinc-900 border border-yellow-500 text-yellow-300'
+                    : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-800'
+                }`}
+              >
+                <span className="text-base">{crop.icon}</span>
+                <span>{cropLabel}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -306,7 +330,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
               <div className="text-left space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-black px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-                    {scanResult.cropName}
+                    {translateCrop(scanResult.cropName, lang)}
                   </span>
                   <span className={`text-xs font-black px-3 py-1 rounded-full uppercase ${
                     scanResult.severity === 'severe'
@@ -315,14 +339,14 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
                       ? 'bg-amber-100 text-amber-800'
                       : 'bg-emerald-100 text-emerald-800'
                   }`}>
-                    {scanResult.severity} Severity
+                    {translateSeverity(scanResult.severity, lang).label}
                   </span>
                 </div>
                 <h3 className="text-xl font-black text-slate-900 leading-tight">
                   {scanResult.diseaseOrPestName}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  {scanResult.confidenceScore}% Identification Confidence
+                  {scanResult.confidenceScore}% {t.aiConfidence}
                 </p>
               </div>
             </div>
@@ -334,12 +358,12 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
                 className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black flex items-center gap-2 transition"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Scan Another Leaf</span>
+                <span>{t.scanAnotherLeaf}</span>
               </button>
 
               <button
                 id="listen-diagnosis-btn"
-                onClick={() => handleSpeak(scanResult.audioSummaryText || `${scanResult.cropName}: ${scanResult.diseaseOrPestName}. ${scanResult.chemicalTreatment.name}`)}
+                onClick={() => handleSpeak(scanResult.audioSummaryText || `${translateCrop(scanResult.cropName, lang)}: ${scanResult.diseaseOrPestName}. ${scanResult.chemicalTreatment.name}`)}
                 className="px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black flex items-center gap-2 shadow transition"
               >
                 <Volume2 className="w-4 h-4" />
@@ -355,10 +379,10 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
 
             <div>
               <h3 className="text-lg font-black text-slate-900">
-                Capture Sick Leaf or Bug
+                {t.captureLeafPrompt}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 font-medium">
-                Hold your mobile camera close to the affected spot for clear diagnosis
+                {t.captureLeafSubtext}
               </p>
             </div>
 
@@ -400,7 +424,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
           </label>
           <span className="text-[11px] font-black text-emerald-700 flex items-center gap-1">
             <Zap className="w-3.5 h-3.5" />
-            Instant 1-Tap Diagnosis
+            {t.instantDiagnosis}
           </span>
         </div>
 
@@ -431,7 +455,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
                     ? 'bg-rose-600 text-white'
                     : 'bg-amber-500 text-white'
                 }`}>
-                  {sample.cropName}
+                  {translateCrop(sample.cropName, lang)}
                 </span>
               </div>
               <div>
@@ -439,7 +463,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
                   {sample.diseaseOrPestName.split('(')[0]}
                 </h4>
                 <p className="text-[10px] text-slate-500 mt-0.5 font-bold">
-                  {sample.confidenceScore}% Match
+                  {sample.confidenceScore}% {t.aiConfidence}
                 </p>
               </div>
             </button>
@@ -462,7 +486,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black">
-                  {scanResult.cropName}
+                  {translateCrop(scanResult.cropName, lang)}
                 </span>
 
                 {scanResult.pathogenType && (
@@ -475,7 +499,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
                       ? 'bg-purple-100 text-purple-900 border border-purple-300'
                       : 'bg-rose-100 text-rose-900 border border-rose-300'
                   }`}>
-                    🔬 {scanResult.pathogenType} Pathogen
+                    🔬 {translatePathogen(scanResult.pathogenType, lang)}
                   </span>
                 )}
 
@@ -486,12 +510,12 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
                     ? 'bg-amber-100 text-amber-800 border border-amber-300'
                     : 'bg-emerald-100 text-emerald-800'
                 }`}>
-                  {t.severityLabel}: {scanResult.severity}
+                  {translateSeverity(scanResult.severity, lang).label}
                 </span>
 
                 <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-emerald-600" />
-                  Gemini Vision AI: {scanResult.confidenceScore}% Confidence
+                  Gemini Vision AI: {scanResult.confidenceScore}% {t.aiConfidence}
                 </span>
               </div>
 
@@ -500,14 +524,14 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
               </h3>
               {scanResult.scientificName && (
                 <p className="text-xs text-slate-500 italic font-medium">
-                  Taxonomic Classification: <strong>{scanResult.scientificName}</strong>
+                  {t.scientificClassification}: <strong>{scanResult.scientificName}</strong>
                 </p>
               )}
             </div>
 
             <button
               id="listen-full-diagnosis-btn"
-              onClick={() => handleSpeak(scanResult.audioSummaryText || `${scanResult.cropName}: ${scanResult.diseaseOrPestName}. ${scanResult.chemicalTreatment.name}`)}
+              onClick={() => handleSpeak(scanResult.audioSummaryText || `${translateCrop(scanResult.cropName, lang)}: ${scanResult.diseaseOrPestName}. ${scanResult.chemicalTreatment.name}`)}
               className="p-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 shadow-md font-black text-xs flex items-center gap-2 shrink-0 active:scale-95 transition"
               title={t.speakText}
             >
@@ -521,7 +545,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
             {/* Stage */}
             <div className="p-4 rounded-3xl bg-slate-50 border border-slate-200">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                Infection Progression Stage
+                {t.infectionProgressionStage}
               </span>
               <div className="text-base font-black text-slate-900 mt-1 capitalize flex items-center gap-1.5">
                 <span className={`w-2.5 h-2.5 rounded-full ${
@@ -531,12 +555,12 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
                     ? 'bg-amber-500'
                     : 'bg-emerald-500'
                 }`} />
-                {scanResult.infectionStage || 'Active Infection'} Stage
+                {translateInfectionStage(scanResult.infectionStage, lang)}
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
                 {scanResult.infectionStage === 'advanced' 
-                  ? 'Urgent intervention required within 24h' 
-                  : 'Early suppression prevents canopy damage'}
+                  ? t.urgentIntervention24h 
+                  : t.earlyInterventionSavesCrop}
               </p>
             </div>
 
@@ -544,14 +568,14 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
             <div className="p-4 rounded-3xl bg-rose-50 border border-rose-200">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-wider text-rose-900 block">
-                  Potential Yield Loss Risk
+                  {t.potentialYieldLossRisk}
                 </span>
                 <span className="text-xs font-black text-rose-700">
-                  {scanResult.yieldLossRiskPercent || 35}% Risk
+                  {scanResult.yieldLossRiskPercent || 35}%
                 </span>
               </div>
               <div className="text-lg font-black text-rose-950 mt-1 font-['Outfit']">
-                {scanResult.yieldLossRiskPercent || 35}% Crop Loss
+                {scanResult.yieldLossRiskPercent || 35}% {t.yieldLossRisk}
               </div>
               {/* Visual Progress Meter */}
               <div className="w-full h-2 bg-rose-200 rounded-full overflow-hidden mt-1.5">
@@ -565,13 +589,13 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
             {/* Spread Velocity */}
             <div className="p-4 rounded-3xl bg-amber-50 border border-amber-200">
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 block">
-                Contagion & Spread Velocity
+                {t.spreadRiskHeading}
               </span>
               <div className="text-base font-black text-amber-950 mt-1 capitalize">
-                {scanResult.spreadRisk ? `${scanResult.spreadRisk} Spread Risk` : 'High Contagion Risk'}
+                {translateSpreadRisk(scanResult.spreadRisk, lang)}
               </div>
               <p className="text-[11px] text-amber-800 mt-0.5 font-medium">
-                Spreads rapidly to adjacent rows via wind & dew
+                {t.spreadVelocityDesc}
               </p>
             </div>
           </div>
@@ -580,24 +604,24 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
           <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-4">
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-              Infection Biology & Transmission Dynamics:
+              {t.infectionBiologyDynamics}:
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               {/* Transmission Method */}
               <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
                 <span className="text-[10px] font-black uppercase text-slate-500 block">
-                  Transmission & Inoculum Pathway:
+                  {t.transmissionPathway}:
                 </span>
                 <p className="font-bold text-slate-800 leading-relaxed">
-                  {scanResult.transmissionMethod || 'Airborne spores and splashing moisture carried from infected soil/plant residues.'}
+                  {scanResult.transmissionMethod || t.transmissionDefaultDesc}
                 </p>
               </div>
 
               {/* Affected Plant Anatomy */}
               <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-1">
                 <span className="text-[10px] font-black uppercase text-slate-500 block">
-                  Targeted Plant Anatomy / Organs:
+                  {t.targetedPlantOrgans}:
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                   {(scanResult.affectedParts && scanResult.affectedParts.length > 0 ? scanResult.affectedParts : ['Lower foliage', 'Petioles', 'Stem collar']).map((part, idx) => (
@@ -613,19 +637,19 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
             {scanResult.favorableConditions && (
               <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2">
                 <span className="text-[11px] font-black uppercase text-emerald-950 block">
-                  🌦️ Favorable Climatic Infection Triggers:
+                  🌦️ {t.favorableClimaticTriggers}:
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-bold text-emerald-900">
                   <div className="flex items-center gap-2">
-                    <span>💧 <strong>Humidity:</strong> {scanResult.favorableConditions.humidity}</span>
+                    <span>💧 <strong>{t.humidityLabel}:</strong> {scanResult.favorableConditions.humidity}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span>🌡️ <strong>Temp Range:</strong> {scanResult.favorableConditions.tempRange}</span>
+                    <span>🌡️ <strong>{t.tempRangeLabel}:</strong> {scanResult.favorableConditions.tempRange}</span>
                   </div>
                 </div>
                 {scanResult.favorableConditions.triggerFactors && scanResult.favorableConditions.triggerFactors.length > 0 && (
                   <div className="pt-1 border-t border-emerald-200/60">
-                    <span className="text-[10px] font-black uppercase text-emerald-800">Key Field Risk Factors:</span>
+                    <span className="text-[10px] font-black uppercase text-emerald-800">{t.keyFieldRiskFactors}:</span>
                     <ul className="mt-1 space-y-1 text-xs text-emerald-950 font-medium">
                       {scanResult.favorableConditions.triggerFactors.map((factor, i) => (
                         <li key={i} className="flex items-center gap-1.5">
@@ -643,7 +667,7 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
           {/* Identified Symptoms & Visual Pathology Signs */}
           <div className="space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">
-              Visual Diagnostic Pathology & Symptoms:
+              {t.visualDiagnosticSymptoms}:
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {(scanResult.visualSigns && scanResult.visualSigns.length > 0 ? scanResult.visualSigns : scanResult.symptoms).map((symptom, idx) => (
@@ -661,13 +685,13 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-black text-emerald-800 uppercase tracking-wider">
                   <FlaskConical className="w-4 h-4 text-emerald-700 stroke-[2.5]" />
-                  <span>Prescription Medicine:</span>
+                  <span>{t.prescriptionMedicine}:</span>
                 </div>
                 <p className="font-black text-lg sm:text-xl mt-0.5 text-emerald-950 font-['Outfit']">
                   {scanResult.chemicalTreatment.name}
                 </p>
                 <p className="text-xs text-emerald-800 font-bold mt-0.5">
-                  Exact Dosage: <strong className="text-emerald-950 text-sm">{scanResult.chemicalTreatment.spoonsPer15LPump} level tablespoons</strong> in a standard 15-liter knapsack pump ({scanResult.chemicalTreatment.dosagePerLiter})
+                  {t.exactDosageLabel}: <strong className="text-emerald-950 text-sm">{scanResult.chemicalTreatment.spoonsPer15LPump} {t.tablespoons}</strong> {t.inStandard15LPump} ({scanResult.chemicalTreatment.dosagePerLiter})
                 </p>
               </div>
 
@@ -685,8 +709,8 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
 
             {/* Quick Best Spraying Time note */}
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-emerald-200/80 text-xs font-bold text-emerald-900 flex-wrap">
-              <span>⏰ Best Spray Window: <strong>{scanResult.bestSprayingTime.recommendedHours}</strong> ({scanResult.bestSprayingTime.reason})</span>
-              <span>🛡️ Pre-Harvest Interval (PHI): <strong>{scanResult.chemicalTreatment.waitingPeriodDays} Days</strong></span>
+              <span>⏰ {t.bestSprayWindowLabel}: <strong>{scanResult.bestSprayingTime.recommendedHours}</strong> ({scanResult.bestSprayingTime.reason})</span>
+              <span>🛡️ {t.phiWaitingPeriod}: <strong>{scanResult.chemicalTreatment.waitingPeriodDays} {t.days}</strong></span>
             </div>
           </div>
 
@@ -694,11 +718,8 @@ export const PlantDoctorScanner: React.FC<PlantDoctorScannerProps> = ({
           <div className="pt-2 flex items-center justify-between gap-3 flex-wrap border-t border-slate-100">
             <button
               id="save-scan-to-diary-btn"
-              onClick={() => {
-                onSaveToDiary(scanResult);
-                alert('Saved diagnosis and infection treatment to your Farm Diary!');
-              }}
-              className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black flex items-center gap-2 transition active:scale-95"
+              onClick={() => handleSaveDiary(scanResult)}
+              className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black flex items-center gap-2 transition active:scale-95 cursor-pointer"
             >
               <BookmarkPlus className="w-4 h-4 text-emerald-600" />
               <span>{t.saveToDiaryBtn}</span>

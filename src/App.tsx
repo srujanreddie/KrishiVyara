@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { initFirebase, getFirebaseDb, getFirebaseAuth } from './lib/firebase';
-import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
+import { initFirebase, getFirebaseDb } from './lib/firebase';
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, getDoc, setDoc, onSnapshot, query, where, addDoc, deleteDoc, orderBy } from 'firebase/firestore';
 
 import { UserProfile, CropScanResult, CurrentWeatherState, FarmDiaryEntry, ActivityType } from './types';
@@ -34,16 +34,27 @@ export default function App() {
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           setFirebaseUser(user);
-          setIsFirebaseInitialized(true);
         } else {
-          await signInAnonymously(auth);
+          setFirebaseUser(null);
         }
+        setIsFirebaseInitialized(true);
       });
     }).catch(err => {
       console.error("Firebase init failed:", err);
       setIsFirebaseInitialized(true); // Fallback to offline mode
     });
   }, []);
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { auth } = await initFirebase();
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login failed:", error);
+      alert("Login failed. Please try again.");
+    }
+  };
 
   // Sync profile with Firestore
   useEffect(() => {
@@ -258,6 +269,37 @@ export default function App() {
       notes: `Recorded ${activityType} on field.`
     });
   };
+
+  if (!isFirebaseInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-emerald-800">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 font-black">Loading KrishiVeyra...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!firebaseUser) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-emerald-50 px-4">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-emerald-100">
+          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">🌱</span>
+          </div>
+          <h1 className="text-3xl font-black text-emerald-900 mb-2 font-['Outfit']">KrishiVeyra</h1>
+          <p className="text-emerald-700 font-medium mb-8">Sign in to sync your farm data, diagnostic reports, and activity logs across your devices securely.</p>
+          <button
+            onClick={handleGoogleLogin}
+            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg shadow-lg shadow-emerald-200 transition active:scale-95 flex items-center justify-center gap-3"
+          >
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen transition-colors ${

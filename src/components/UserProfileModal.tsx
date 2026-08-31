@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserProfile, LanguageCode } from '../types';
 import { translations } from '../data/translations';
+import { translateCrop, translateSoilType } from '../utils/i18n';
 import { 
   User, 
   MapPin, 
@@ -41,6 +42,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isLocating = false
 }) => {
   const t = translations[userProfile.languagePreference] || translations.en;
+  const lang = userProfile.languagePreference;
 
   const handleToggleCrop = (crop: string) => {
     setUserProfile(prev => {
@@ -110,7 +112,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
                 <label className="font-black text-slate-800">
-                  Field Location & GPS Radar
+                  {t.fieldLocationRadarLabel}
                 </label>
               </div>
 
@@ -122,7 +124,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-black text-[11px] flex items-center gap-1.5 shadow-sm active:scale-95 transition"
                 >
                   <MapPin className={`w-3.5 h-3.5 ${isLocating ? 'animate-bounce' : ''}`} />
-                  <span>{isLocating ? 'Locating GPS...' : 'Auto-Detect (GPS)'}</span>
+                  <span>{isLocating ? t.locatingGpsShort : t.autoDetectLocation}</span>
                 </button>
               )}
             </div>
@@ -130,7 +132,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Village:
+                  {t.villageLabel}:
                 </label>
                 <input
                   type="text"
@@ -143,7 +145,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  District & State:
+                  {t.districtStateLabel}:
                 </label>
                 <input
                   type="text"
@@ -166,11 +168,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {(userProfile.latitude || userProfile.longitude) && (
               <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200">
                 <span className="flex items-center gap-1">
-                  📍 Coordinates: <strong className="text-slate-800 font-mono">{userProfile.latitude?.toFixed(4)}°N, {userProfile.longitude?.toFixed(4)}°E</strong>
+                  📍 {t.coordinatesLabel}: <strong className="text-slate-800 font-mono">{userProfile.latitude?.toFixed(4)}°N, {userProfile.longitude?.toFixed(4)}°E</strong>
                 </span>
                 {userProfile.locationAccuracyMeters && (
                   <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                    GPS Accuracy: ±{userProfile.locationAccuracyMeters}m
+                    {t.gpsAccuracyLabel}: ±{userProfile.locationAccuracyMeters}m
                   </span>
                 )}
               </div>
@@ -180,7 +182,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Farm Size */}
           <div>
             <label className="block font-black text-slate-700 mb-1">
-              Farm Size (Acres):
+              {t.farmSizeAcresLabel}:
             </label>
             <input
               type="number"
@@ -193,7 +195,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Soil Type */}
           <div>
             <label className="block font-black text-slate-700 mb-1.5">
-              Soil Type:
+              {t.soilTypeLabel}:
             </label>
             <div className="grid grid-cols-3 gap-2">
               {['Black Clayey Soil', 'Red Loamy Soil', 'Sandy Loam'].map(soil => (
@@ -207,7 +209,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  {soil}
+                  {translateSoilType(soil, lang)}
                 </button>
               ))}
             </div>
@@ -216,7 +218,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Primary Crops Cultivated */}
           <div>
             <label className="block font-black text-slate-700 mb-2">
-              Crops You Grow:
+              {t.cropsYouGrowLabel}:
             </label>
             <div className="flex items-center gap-2 flex-wrap">
               {['Tomato', 'Cotton', 'Rice', 'Wheat', 'Chili', 'Potato', 'Corn', 'Soybean', 'Onion', 'Sugarcane'].map(crop => {
@@ -233,7 +235,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     }`}
                   >
                     {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    <span>{crop}</span>
+                    <span>{translateCrop(crop, lang)}</span>
                   </button>
                 );
               })}
@@ -243,17 +245,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Accessibility Toggles */}
           <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3.5">
             <h4 className="font-black text-slate-900 font-['Outfit']">
-              Accessibility & Voice Preferences
+              {t.accessibilityPreferencesHeading}
             </h4>
 
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-black text-slate-900 flex items-center gap-2">
                   <Volume2 className="w-4 h-4 text-emerald-600" />
-                  <span>Auto-Read Diagnoses Aloud</span>
+                  <span>{t.autoReadDiagnosesLabel}</span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Automatically speaks medicine advice upon scanning
+                  {t.autoReadDiagnosesDesc}
                 </p>
               </div>
 
@@ -269,10 +271,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div>
                 <div className="font-black text-slate-900 flex items-center gap-2">
                   <Sun className="w-4 h-4 text-amber-500" />
-                  <span>Sunlight / High-Contrast Mode</span>
+                  <span>{t.sunlightContrastLabel}</span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Maximum contrast for viewing in bright outdoor sunlight
+                  {t.sunlightContrastDesc}
                 </p>
               </div>
 
@@ -292,7 +294,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             onClick={onClose}
             className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-200 active:scale-95 transition"
           >
-            Save & Return to Dashboard
+            {t.saveReturnBtn}
           </button>
         </div>
       </div>

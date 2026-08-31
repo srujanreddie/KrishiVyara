@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { UserProfile, CropScanResult } from '../types';
 import { translations } from '../data/translations';
 import { sampleDiseases } from '../data/mockData';
+import { 
+  translateCrop, 
+  translateSeverity, 
+  translatePathogen, 
+  translateSpreadRisk, 
+  translateInfectionStage,
+  translateSafetyGear 
+} from '../utils/i18n';
 import { ActiveTab } from './Navigation';
 import { 
   FlaskConical, 
@@ -45,6 +53,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
   setIsAudioPlaying
 }) => {
   const t = translations[userProfile.languagePreference] || translations.en;
+  const lang = userProfile.languagePreference;
   
   // Use active scan or default to first sample
   const scan = activeScan || sampleDiseases[0];
@@ -63,8 +72,8 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
   // Calculated dosages based on pump tank size
   const dosePerLiter = scan.chemicalTreatment.mlOrGramsPerLiter || 2.5;
   const totalDoseGramsOrMl = (dosePerLiter * tankSizeLiters).toFixed(1);
-  const totalSpoons = (parseFloat(totalDoseGramsOrMl) / 15).toFixed(1); // Assuming 1 standard tablespoon ~ 15g/ml
-  const roundedSpoons = Math.round(parseFloat(totalSpoons) * 2) / 2; // nearest 0.5
+  const totalSpoons = (parseFloat(totalDoseGramsOrMl) / 15).toFixed(1);
+  const roundedSpoons = Math.round(parseFloat(totalSpoons) * 2) / 2;
 
   // Render visual spoon icons
   const renderVisualSpoons = (numSpoons: number) => {
@@ -79,20 +88,26 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
             className="flex flex-col items-center justify-center p-2 rounded-xl bg-amber-100 border border-amber-300 shadow-sm"
           >
             <span className="text-2xl">🥄</span>
-            <span className="text-[10px] font-extrabold text-amber-900 mt-0.5">1 Spoon</span>
+            <span className="text-[10px] font-extrabold text-amber-900 mt-0.5">1 {t.tablespoons}</span>
           </div>
         ))}
         {hasHalf && (
           <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-amber-100/70 border border-dashed border-amber-400 shadow-sm">
             <span className="text-xl opacity-80">🥄½</span>
-            <span className="text-[10px] font-extrabold text-amber-900 mt-0.5">½ Spoon</span>
+            <span className="text-[10px] font-extrabold text-amber-900 mt-0.5">½ {t.tablespoons}</span>
           </div>
         )}
       </div>
     );
   };
 
-  const fullAudioScript = `Step by step medicine guide for ${scan.cropName} ${scan.diseaseOrPestName}. For a ${tankSizeLiters} liter pump, add ${roundedSpoons} tablespoons of ${scan.chemicalTreatment.name}. Mix well in clean water. Best time to spray is ${scan.bestSprayingTime.recommendedHours}. Please wear face mask and gloves.`;
+  const cropTranslated = translateCrop(scan.cropName, lang);
+  const fullAudioScript = `${cropTranslated} ${scan.diseaseOrPestName}. ${tankSizeLiters}L: ${roundedSpoons} ${t.tablespoons} ${scan.chemicalTreatment.name}. ${scan.bestSprayingTime.recommendedHours}.`;
+
+  const maskGear = translateSafetyGear('Face Mask', lang);
+  const glovesGear = translateSafetyGear('Rubber Gloves', lang);
+  const gogglesGear = translateSafetyGear('Eye Goggles', lang);
+  const bootsGear = translateSafetyGear('Rubber Boots', lang);
 
   return (
     <div className="space-y-5 pb-24 max-w-4xl mx-auto">
@@ -106,22 +121,22 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="px-3 py-1 rounded-full bg-white/20 text-xs font-black uppercase tracking-wider text-emerald-100">
-                {scan.cropName} Treatment Plan
+                {cropTranslated} {t.viewTreatmentPlan}
               </span>
               {scan.pathogenType && (
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-xs font-black uppercase">
-                  🔬 {scan.pathogenType}
+                  🔬 {translatePathogen(scan.pathogenType, lang)}
                 </span>
               )}
               <span className="text-xs text-emerald-200 font-bold">
-                Diagnosis: {scan.diseaseOrPestName}
+                {scan.diseaseOrPestName}
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black font-['Outfit'] tracking-tight">
               {t.medicineGuideTitle}
             </h2>
             <p className="text-xs sm:text-sm text-emerald-100 mt-0.5 font-medium">
-              Calculated for {scan.cropName} • Stage: {scan.infectionStage || 'Active'} • Loss Risk: {scan.yieldLossRiskPercent || 35}%
+              {cropTranslated} • {translateInfectionStage(scan.infectionStage, lang)} • {scan.yieldLossRiskPercent || 35}% {t.yieldLossRisk}
             </p>
           </div>
 
@@ -140,29 +155,29 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
       {/* Infection Pathology Highlights */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-black uppercase text-slate-500 block">Pathogen Agent</span>
+          <span className="text-[10px] font-black uppercase text-slate-500 block">{t.infectionBiologyDynamics}</span>
           <span className="text-xs font-black text-slate-900 capitalize mt-0.5 block">
-            {scan.pathogenType || 'Fungal'} Microorganism
+            {translatePathogen(scan.pathogenType || 'fungal', lang)}
           </span>
         </div>
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-black uppercase text-slate-500 block">Infection Severity</span>
+          <span className="text-[10px] font-black uppercase text-slate-500 block">{t.severityLabel}</span>
           <span className={`text-xs font-black uppercase mt-0.5 block ${
             scan.severity === 'severe' ? 'text-rose-600' : 'text-amber-600'
           }`}>
-            {scan.severity} ({scan.yieldLossRiskPercent || 35}% Loss Risk)
+            {translateSeverity(scan.severity, lang).label} ({scan.yieldLossRiskPercent || 35}% {t.yieldLossRisk})
           </span>
         </div>
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-black uppercase text-slate-500 block">Contagion Rate</span>
+          <span className="text-[10px] font-black uppercase text-slate-500 block">{t.spreadRiskHeading}</span>
           <span className="text-xs font-black text-slate-900 capitalize mt-0.5 block">
-            {scan.spreadRisk || 'Moderate'} Spread Risk
+            {translateSpreadRisk(scan.spreadRisk, lang)}
           </span>
         </div>
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <span className="text-[10px] font-black uppercase text-slate-500 block">Safe Harvest PHI</span>
+          <span className="text-[10px] font-black uppercase text-slate-500 block">{t.phiWaitingPeriod}</span>
           <span className="text-xs font-black text-emerald-700 mt-0.5 block">
-            {scan.chemicalTreatment.waitingPeriodDays} Days Wait Period
+            {scan.chemicalTreatment.waitingPeriodDays} {t.days}
           </span>
         </div>
       </div>
@@ -170,7 +185,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
       {/* Quick Switch for Other Crop Scans */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         <span className="text-xs font-black uppercase tracking-wider text-slate-500 shrink-0 px-1">
-          Switch Disease:
+          {t.selectCropLabel}:
         </span>
         {sampleDiseases.map((d) => (
           <button
@@ -182,7 +197,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
                 : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-700'
             }`}
           >
-            {d.cropName}: {d.diseaseOrPestName.split('(')[0]}
+            {translateCrop(d.cropName, lang)}: {d.diseaseOrPestName.split('(')[0]}
           </button>
         ))}
       </div>
@@ -206,13 +221,13 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
                 {t.dosageCalculatorTitle}
               </h3>
               <p className="text-xs text-slate-500 font-medium">
-                Select your sprayer tank size to see exact spoons needed
+                {t.exactDosageLabel} ({tankSizeLiters}L)
               </p>
             </div>
           </div>
 
           <span className="text-xs font-black px-3.5 py-1.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
-            {tankSizeLiters} Liters Tank
+            {tankSizeLiters} {t.liters}
           </span>
         </div>
 
@@ -223,10 +238,10 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {[
-              { size: 10, label: '10 Liters (Small)' },
-              { size: 15, label: '15 Liters (Knapsack)' },
-              { size: 16, label: '16 Liters (Standard)' },
-              { size: 20, label: '20 Liters (Large Tank)' }
+              { size: 10, label: '10 L' },
+              { size: 15, label: '15 L' },
+              { size: 16, label: '16 L' },
+              { size: 20, label: '20 L' }
             ].map((item) => (
               <button
                 key={item.size}
@@ -240,7 +255,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
                     : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800 font-bold'
                 }`}
               >
-                <div className="text-lg font-black">{item.size} L</div>
+                <div className="text-lg font-black">{item.size} {t.liters}</div>
                 <div className="text-[10px] opacity-85 font-medium">{item.label}</div>
               </button>
             ))}
@@ -252,33 +267,28 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
               <span className="text-xs font-black uppercase tracking-wider text-amber-800">
-                {t.spoonsNeeded} for {tankSizeLiters}L Pump:
+                {t.spoonsNeeded} ({tankSizeLiters}L):
               </span>
               <div className="text-2xl sm:text-3xl font-black text-amber-950 font-['Outfit'] mt-0.5">
-                {roundedSpoons} Level Spoons <span className="text-sm font-bold opacity-75">({totalDoseGramsOrMl} {scan.chemicalTreatment.unitType})</span>
+                {roundedSpoons} {t.tablespoons} <span className="text-sm font-bold opacity-75">({totalDoseGramsOrMl} {scan.chemicalTreatment.unitType})</span>
               </div>
             </div>
 
             <button
-              onClick={() => handleSpeak(`For your ${tankSizeLiters} liter pump, add exactly ${roundedSpoons} level tablespoons of ${scan.chemicalTreatment.name}.`)}
+              onClick={() => handleSpeak(`${tankSizeLiters}L: ${roundedSpoons} ${t.tablespoons} ${scan.chemicalTreatment.name}.`)}
               className="px-4 py-2 rounded-2xl bg-amber-200 hover:bg-amber-300 text-amber-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition"
             >
               <Volume2 className="w-4 h-4" />
-              <span>Hear Measure</span>
+              <span>{t.speakText}</span>
             </button>
           </div>
 
           {/* Visual Spoon Rendering */}
           <div>
             <span className="text-[11px] font-black text-amber-800">
-              Visual Guide (No calculation needed):
+              {t.exactDosageLabel}:
             </span>
             {renderVisualSpoons(roundedSpoons)}
-          </div>
-          
-          <div className="text-xs text-amber-900/90 font-medium flex items-center gap-1.5 pt-2 border-t border-amber-200/80">
-            <span>💡</span>
-            <span><strong>Tip:</strong> Always dissolve medicine in a small bucket of water first, then pour into spray tank through the strainer.</span>
           </div>
         </div>
       </div>
@@ -323,13 +333,13 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span className="text-[11px] font-black uppercase px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-                  Recommended Safe Chemical
+                  {t.chemicalMedicineHeading}
                 </span>
                 <h3 className="text-xl font-black text-slate-900 mt-1.5 font-['Outfit']">
                   {scan.chemicalTreatment.name}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  Active Formula: {scan.chemicalTreatment.activeIngredient}
+                  {t.activeFormulaLabel}: {scan.chemicalTreatment.activeIngredient}
                 </p>
               </div>
 
@@ -346,7 +356,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
             {/* Common Trade / Market Brands */}
             <div>
               <span className="text-xs font-black uppercase tracking-wider text-slate-500 block mb-2">
-                Ask Agri Shopkeeper For Any of These Brands:
+                {t.marketBrandsLabel}:
               </span>
               <div className="flex items-center gap-2 flex-wrap">
                 {scan.chemicalTreatment.tradeNames.map((brand, i) => (
@@ -367,22 +377,22 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
                   {t.harvestSafetyDays} (PHI)
                 </span>
                 <div className="text-xl font-black text-amber-950 mt-0.5">
-                  {scan.chemicalTreatment.waitingPeriodDays} Days
+                  {scan.chemicalTreatment.waitingPeriodDays} {t.days}
                 </div>
                 <p className="text-[11px] text-amber-800 mt-0.5 font-medium">
-                  Safe to harvest and eat after {scan.chemicalTreatment.waitingPeriodDays} days
+                  {t.phiWaitingPeriod}: {scan.chemicalTreatment.waitingPeriodDays} {t.days}
                 </p>
               </div>
 
               <div className="p-4 rounded-3xl bg-slate-50 border border-slate-200">
                 <span className="text-[11px] font-black text-slate-700 uppercase block">
-                  Max Sprays Per Season
+                  {t.maxSpraysPerSeasonLabel}
                 </span>
                 <div className="text-xl font-black text-slate-900 mt-0.5">
-                  {scan.chemicalTreatment.maxSpraysPerSeason} Times Max
+                  {scan.chemicalTreatment.maxSpraysPerSeason} {t.timesMaxLabel}
                 </div>
                 <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
-                  Prevents pest immunity and soil toxicity
+                  {t.preventsResistanceNote}
                 </p>
               </div>
             </div>
@@ -399,19 +409,19 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
         }`}>
           <div>
             <span className="text-[11px] font-black uppercase px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
-              🌿 Natural Desi Remedy
+              🌿 {t.organicRemedyHeading}
             </span>
             <h3 className="text-xl font-black text-slate-900 mt-1.5 font-['Outfit']">
               {scan.organicTreatment.name}
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              Low cost • Safe for honeybees • 100% Organic
+              {t.organicSubtext}
             </p>
           </div>
 
           <div className="p-4 sm:p-5 rounded-3xl bg-emerald-50 border border-emerald-200 space-y-2">
             <span className="text-xs font-black text-emerald-900 uppercase">
-              Ingredients Needed:
+              {t.ingredientsNeeded}:
             </span>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-bold text-emerald-950">
               {scan.organicTreatment.ingredients.map((ing, idx) => (
@@ -425,7 +435,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
 
           <div>
             <span className="text-xs font-black uppercase tracking-wider text-slate-500 block mb-2">
-              Preparation Recipe:
+              {t.prepRecipe}:
             </span>
             <p className="text-xs sm:text-sm text-slate-800 leading-relaxed p-4 rounded-3xl bg-slate-50 border border-slate-200 font-medium">
               {scan.organicTreatment.recipe}
@@ -433,8 +443,8 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
           </div>
 
           <div className="flex items-center justify-between text-xs font-black text-slate-600 pt-1">
-            <span>⏱️ Prep Time: {scan.organicTreatment.preparationTime}</span>
-            <span>💧 Dose: {scan.organicTreatment.mixingRatio}</span>
+            <span>⏱️ {t.prepTime}: {scan.organicTreatment.preparationTime}</span>
+            <span>💧 {t.mixingDose}: {scan.organicTreatment.mixingRatio}</span>
           </div>
         </div>
       )}
@@ -459,7 +469,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
                 {t.sprayingTimeTitle}
               </h3>
               <p className="text-xs text-slate-500 font-medium">
-                Timing dictates 80% of chemical effectiveness
+                {t.sprayWindowSubtext}
               </p>
             </div>
           </div>
@@ -470,7 +480,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
         </div>
 
         <div className="p-4 rounded-3xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-          <strong className="font-black text-slate-900">Why this time?</strong> {scan.bestSprayingTime.reason}
+          <strong className="font-black text-slate-900">{t.sprayWhyTime}:</strong> {scan.bestSprayingTime.reason}
         </div>
       </div>
 
@@ -491,32 +501,32 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
             <span className="text-2xl">😷</span>
             <div>
-              <div className="text-xs font-black text-slate-900">Face Mask</div>
-              <div className="text-[10px] text-slate-500 font-medium">No inhalation</div>
+              <div className="text-xs font-black text-slate-900">{maskGear.name}</div>
+              <div className="text-[10px] text-slate-500 font-medium">{maskGear.desc}</div>
             </div>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
             <span className="text-2xl">🧤</span>
             <div>
-              <div className="text-xs font-black text-slate-900">Rubber Gloves</div>
-              <div className="text-[10px] text-slate-500 font-medium">Skin barrier</div>
+              <div className="text-xs font-black text-slate-900">{glovesGear.name}</div>
+              <div className="text-[10px] text-slate-500 font-medium">{glovesGear.desc}</div>
             </div>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
             <span className="text-2xl">🥽</span>
             <div>
-              <div className="text-xs font-black text-slate-900">Eye Goggles</div>
-              <div className="text-[10px] text-slate-500 font-medium">No splash in eyes</div>
+              <div className="text-xs font-black text-slate-900">{gogglesGear.name}</div>
+              <div className="text-[10px] text-slate-500 font-medium">{gogglesGear.desc}</div>
             </div>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
             <span className="text-2xl">🥾</span>
             <div>
-              <div className="text-xs font-black text-slate-900">Rubber Boots</div>
-              <div className="text-[10px] text-slate-500 font-medium">Feet protection</div>
+              <div className="text-xs font-black text-slate-900">{bootsGear.name}</div>
+              <div className="text-[10px] text-slate-500 font-medium">{bootsGear.desc}</div>
             </div>
           </div>
         </div>
@@ -530,14 +540,14 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
           className="px-5 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs flex items-center gap-2 transition active:scale-95"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Scan Another Plant</span>
+          <span>{t.scanAnotherLeaf}</span>
         </button>
 
         <div className="flex items-center gap-2.5">
           <button
             id="save-medicine-to-diary-btn"
             onClick={() => {
-              onSaveToDiary(scan, `${roundedSpoons} spoons (${totalDoseGramsOrMl} ${scan.chemicalTreatment.unitType}) in ${tankSizeLiters}L pump`);
+              onSaveToDiary(scan, `${roundedSpoons} ${t.tablespoons} (${totalDoseGramsOrMl} ${scan.chemicalTreatment.unitType}) in ${tankSizeLiters}L`);
               setSavedSuccess(true);
               setTimeout(() => setSavedSuccess(false), 3000);
             }}
@@ -548,7 +558,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
             }`}
           >
             <BookmarkPlus className="w-4 h-4" />
-            <span>{savedSuccess ? '✓ Saved to Farm Diary!' : t.saveToDiaryBtn}</span>
+            <span>{savedSuccess ? `✓ ${t.savedToDiarySuccess}` : t.saveToDiaryBtn}</span>
           </button>
 
           <button
@@ -556,7 +566,7 @@ export const MedicineGuide: React.FC<MedicineGuideProps> = ({
             className="px-5 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-indigo-200 transition active:scale-95"
           >
             <Headset className="w-4 h-4" />
-            <span className="hidden sm:inline">Ask Agronomist</span>
+            <span className="hidden sm:inline">{t.askAgronomist}</span>
           </button>
         </div>
       </div>
