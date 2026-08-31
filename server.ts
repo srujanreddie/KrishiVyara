@@ -3,10 +3,6 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
-import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
-import { db } from './src/db/index.ts';
-import { users, diaryEntries, cropScans } from './src/db/schema.ts';
-import { eq, desc } from 'drizzle-orm';
 
 dotenv.config();
 
@@ -428,16 +424,18 @@ app.post('/api/expert-chat', async (req, res) => {
     const ai = getGeminiClient();
 
     const lastUserMsg = messages[messages.length - 1]?.text || 'Hello expert';
-    const systemPrompt = `You are Dr. Ramesh Sharma, a friendly, compassionate Krishi Vigyan Kendra (KVK) Senior Agricultural Scientist and Agronomist.
-You are talking to a farmer named ${userProfile?.name || 'Farmer'} from ${userProfile?.village || 'the village'}, ${userProfile?.district || 'district'}, who grows ${userProfile?.primaryCrops?.join(', ') || 'crops'}.
-Active crop context: ${currentScanContext ? JSON.stringify(currentScanContext.diseaseOrPestName) : 'General farming enquiry'}.
-Farmer Language: ${language || 'en'}.
+    const systemPrompt = `You are KrishiVeyra's farming assistant. You ONLY answer questions related to farming: crops, pests, diseases, fertilizers, irrigation, weather-related farming decisions, soil health, government agricultural schemes, and market prices.
 
-Guidelines:
-1. Speak with utmost warmth, respect (use "Kisan Bhai / Ji" or local respectful honorifics), and zero academic jargon.
-2. Give actionable, practical advice: exact dosage (in spoons / ml per 15-liter pump), timing, and safe handling.
-3. Keep answers concise (under 120 words) so they are easy to read or listen to on a mobile screen.
-4. Mention both a reliable chemical remedy and a low-cost organic desi alternative.`;
+You are talking to a farmer named ${userProfile?.name || 'Farmer'} from ${userProfile?.village || 'their village'}, ${userProfile?.district || 'their district'}, who grows ${userProfile?.primaryCrops?.join(', ') || 'various crops'}.
+Active crop context (if any): ${currentScanContext ? JSON.stringify(currentScanContext.diseaseOrPestName) : 'General farming enquiry'}.
+
+Rules:
+1. If a question is not related to farming/agriculture, politely say you can only help with farming questions, and redirect them.
+2. Use simple, clear language. Avoid technical jargon — assume the farmer may have limited literacy or education.
+3. Keep answers short and practical — give direct, actionable advice (e.g., "Use X kg per acre" not vague theory).
+4. If you're not fully sure about a dosage, treatment, or safety-critical answer, tell the farmer to confirm with a local agronomist or the app's helpline instead of guessing.
+5. Where possible, mention low-cost or locally available solutions, not just expensive branded products.
+6. Respond in ${language || "the user's input language"}.`;
 
     // 1. Try Grok chat if Grok key is present
     if (grokKey) {
@@ -1529,160 +1527,9 @@ function generateFallbackExpertReply(userMsg?: string, scanContext?: any, lang: 
 }
 
 // ==========================================
-// Cloud SQL Database API Endpoints
-// ==========================================
-
-// Helper to get or create user by Firebase UID
-async function getOrCreateDbUser(uid: string, email: string = 'farmer@krishiveyra.com') {
-  const existing = await db.select().from(users).where(eq(users.uid, uid));
-  if (existing.length > 0) {
-    return existing[0];
-  }
-  const inserted = await db.insert(users).values({
-    uid,
-    email,
-  }).returning();
-  return inserted[0];
-}
-
-app.get('/api/user/profile', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const uid = req.user!.uid;
-    const email = req.user!.email || 'farmer@krishiveyra.com';
-    const dbUser = await getOrCreateDbUser(uid, email);
-    res.json({ profile: dbUser.profileData || null });
-  } catch (error: any) {
-    console.error('Failed to fetch user profile:', error);
-    res.status(500).json({ error: error.message || 'Failed to fetch profile' });
-  }
-});
-
-app.post('/api/user/profile', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const uid = req.user!.uid;
-    const email = req.user!.email || 'farmer@krishiveyra.com';
-    const profile = req.body;
-    const dbUser = await getOrCreateDbUser(uid, email);
-    
-    await db.update(users)
-      .set({ profileData: profile })
-      .where(eq(users.id, dbUser.id));
-
-    res.json({ success: true, profile });
-  } catch (error: any) {
-    console.error('Failed to save user profile:', error);
-    res.status(500).json({ error: error.message || 'Failed to save profile' });
-  }
-});
-
-app.get('/api/diary', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const uid = req.user!.uid;
-    const dbUser = await db.select().from(users).where(eq(users.uid, uid));
-    if (dbUser.length === 0) {
-      return res.json([]);
-    }
-    const entries = await db.select().from(diaryEntries).where(eq(diaryEntries.userId, dbUser[0].id)).orderBy(desc(diaryEntries.createdAt));
-    res.json(entries);
-  } catch (error: any) {
-    console.error('Failed to fetch diary entries:', error);
-    res.status(500).json({ error: error.message || 'Failed to fetch diary entries' });
-  }
-});
-
-app.post('/api/diary', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const uid = req.user!.uid;
-    const email = req.user!.email || 'farmer@krishiveyra.com';
-    const dbUser = await getOrCreateDbUser(uid, email);
-    const entry = req.body;
-
-    // Upsert or insert diary entry
-    const existing = await db.select().from(diaryEntries).where(eq(diaryEntries.entryId, entry.id));
-    if (existing.length > 0) {
-      await db.update(diaryEntries).set({
-        cropName: entry.cropName,
-        plotName: entry.plotName,
-        activityType: entry.activityType,
-        date: entry.date,
-        time: entry.time,
-        notes: entry.notes,
-        quantity: entry.quantity,
-        unit: entry.unit,
-        chemicalUsed: entry.chemicalUsed,
-        cost: entry.cost,
-        imageUrl: entry.imageUrl,
-        status: entry.status,
-      }).where(eq(diaryEntries.entryId, entry.id));
-    } else {
-      await db.insert(diaryEntries).values({
-        userId: dbUser.id,
-        entryId: entry.id,
-        cropName: entry.cropName,
-        plotName: entry.plotName,
-        activityType: entry.activityType,
-        date: entry.date,
-        time: entry.time,
-        notes: entry.notes,
-        quantity: entry.quantity,
-        unit: entry.unit,
-        chemicalUsed: entry.chemicalUsed,
-        cost: entry.cost,
-        imageUrl: entry.imageUrl,
-        status: entry.status,
-      });
-    }
-
-    res.json({ success: true });
-  } catch (error: any) {
-    console.error('Failed to save diary entry:', error);
-    res.status(500).json({ error: error.message || 'Failed to save diary entry' });
-  }
-});
-
-app.get('/api/scans', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const uid = req.user!.uid;
-    const dbUser = await db.select().from(users).where(eq(users.uid, uid));
-    if (dbUser.length === 0) {
-      return res.json([]);
-    }
-    const scans = await db.select().from(cropScans).where(eq(cropScans.userId, dbUser[0].id)).orderBy(desc(cropScans.createdAt));
-    res.json(scans.map(s => s.scanData));
-  } catch (error: any) {
-    console.error('Failed to fetch crop scans:', error);
-    res.status(500).json({ error: error.message || 'Failed to fetch crop scans' });
-  }
-});
-
-app.post('/api/scans', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const uid = req.user!.uid;
-    const email = req.user!.email || 'farmer@krishiveyra.com';
-    const dbUser = await getOrCreateDbUser(uid, email);
-    const scan = req.body;
-
-    const existing = await db.select().from(cropScans).where(eq(cropScans.scanId, scan.id));
-    if (existing.length === 0) {
-      await db.insert(cropScans).values({
-        userId: dbUser.id,
-        scanId: scan.id,
-        cropName: scan.cropName,
-        diseaseName: scan.diseaseOrPestName,
-        severity: scan.severity,
-        confidenceScore: scan.confidenceScore,
-        scanData: scan,
-      });
-    }
-
-    res.json({ success: true });
-  } catch (error: any) {
-    console.error('Failed to save crop scan:', error);
-    res.status(500).json({ error: error.message || 'Failed to save crop scan' });
-  }
-});
 
 // ==========================================
+// Firebase Config Serving
 // ==========================================
 app.get('/firebase-applet-config.json', (req, res) => {
   res.sendFile(path.join(process.cwd(), 'firebase-applet-config.json'));
