@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initFirebase, getFirebaseDb } from './lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, getDoc, setDoc, onSnapshot, query, where, addDoc, deleteDoc, orderBy } from 'firebase/firestore';
 
 import { UserProfile, CropScanResult, CurrentWeatherState, FarmDiaryEntry, ActivityType } from './types';
@@ -24,7 +24,14 @@ import { detectLocationAndWeather } from './utils/locationService';
 export default function App() {
   // 1. User Profile State (persisted to localStorage)
   
-  const [userProfile, setUserProfileState] = useState<UserProfile>(initialUserProfile);
+  const [userProfile, setUserProfileState] = useState<UserProfile>(() => {
+    try {
+      const stored = localStorage.getItem('krishiveyra_profile');
+      return stored ? JSON.parse(stored) : initialUserProfile;
+    } catch {
+      return initialUserProfile;
+    }
+  });
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
 
@@ -45,16 +52,6 @@ export default function App() {
     });
   }, []);
 
-  const handleGoogleLogin = async () => {
-    try {
-      const { auth } = await initFirebase();
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed:", error);
-      alert("Login failed. Please try again.");
-    }
-  };
 
   // Sync profile with Firestore
   useEffect(() => {
@@ -161,7 +158,14 @@ export default function App() {
 
   // 5. Farm Diary Entries State (persisted to localStorage)
   
-  const [diaryEntries, setDiaryEntriesState] = useState<FarmDiaryEntry[]>(initialDiaryEntries);
+  const [diaryEntries, setDiaryEntriesState] = useState<FarmDiaryEntry[]>(() => {
+    try {
+      const stored = localStorage.getItem('krishiveyra_diary');
+      return stored ? JSON.parse(stored) : initialDiaryEntries;
+    } catch {
+      return initialDiaryEntries;
+    }
+  });
 
   // Sync diary entries from Firestore
   useEffect(() => {
@@ -217,7 +221,11 @@ export default function App() {
       const db = getFirebaseDb();
       setDoc(doc(db, 'diaryEntries', newEntry.id), newEntry);
     } else {
-      setDiaryEntriesState(prev => [newEntry, ...prev]);
+      setDiaryEntriesState(prev => {
+        const next = [newEntry, ...prev];
+        localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
+        return next;
+      });
     }
     showToast(`Saved ${scan.cropName} diagnosis to Farm Diary!`);
   };
@@ -246,7 +254,11 @@ export default function App() {
       const db = getFirebaseDb();
       setDoc(doc(db, 'diaryEntries', newEntry.id), newEntry);
     } else {
-      setDiaryEntriesState(prev => [newEntry, ...prev]);
+      setDiaryEntriesState(prev => {
+        const next = [newEntry, ...prev];
+        localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
+        return next;
+      });
     }
     showToast(`Logged activity to Farm Diary!`);
   };
@@ -256,7 +268,11 @@ export default function App() {
       const db = getFirebaseDb();
       deleteDoc(doc(db, 'diaryEntries', id));
     } else {
-      setDiaryEntriesState(prev => prev.filter(e => e.id !== id));
+      setDiaryEntriesState(prev => {
+        const next = prev.filter(e => e.id !== id);
+        localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
+        return next;
+      });
     }
     showToast(`Diary record removed`);
   };
@@ -276,26 +292,6 @@ export default function App() {
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
           <p className="mt-4 font-black">Loading KrishiVeyra...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!firebaseUser) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-emerald-50 px-4">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-emerald-100">
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-4xl">🌱</span>
-          </div>
-          <h1 className="text-3xl font-black text-emerald-900 mb-2 font-['Outfit']">KrishiVeyra</h1>
-          <p className="text-emerald-700 font-medium mb-8">Sign in to sync your farm data, diagnostic reports, and activity logs across your devices securely.</p>
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg shadow-lg shadow-emerald-200 transition active:scale-95 flex items-center justify-center gap-3"
-          >
-            Sign in with Google
-          </button>
         </div>
       </div>
     );
