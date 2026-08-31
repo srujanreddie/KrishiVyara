@@ -4,9 +4,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { initFirebase, getFirebaseDb } from './lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, doc, getDoc, setDoc, onSnapshot, query, where, addDoc, deleteDoc, orderBy } from 'firebase/firestore';
 
 import { UserProfile, CropScanResult, CurrentWeatherState, FarmDiaryEntry, ActivityType } from './types';
 import { initialUserProfile, initialWeatherState, sampleDiseases, initialDiaryEntries } from './data/mockData';
@@ -32,53 +29,15 @@ export default function App() {
       return initialUserProfile;
     }
   });
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false);
-
-  // Initialize Firebase and Auth
-  useEffect(() => {
-    initFirebase().then(({ auth }) => {
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          setFirebaseUser(user);
-        } else {
-          setFirebaseUser(null);
-        }
-        setIsFirebaseInitialized(true);
-      });
-    }).catch(err => {
-      console.error("Firebase init failed:", err);
-      setIsFirebaseInitialized(true); // Fallback to offline mode
-    });
-  }, []);
 
 
-  // Sync profile with Firestore
-  useEffect(() => {
-    if (!firebaseUser) return;
-    const db = getFirebaseDb();
-    const userRef = doc(db, 'users', firebaseUser.uid);
-    const unsubscribe = onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setUserProfileState({ ...initialUserProfile, ...docSnap.data(), id: firebaseUser.uid });
-      } else {
-        // Initialize profile in DB
-        setDoc(userRef, { ...initialUserProfile, id: firebaseUser.uid }, { merge: true });
-      }
-    });
-    return () => unsubscribe();
-  }, [firebaseUser]);
 
-  // Wrapper for setUserProfile to save to Firestore
+
+  // Wrapper for setUserProfile to save to LocalStorage
   const setUserProfile = (updater: any) => {
     setUserProfileState(prev => {
       const nextProfile = typeof updater === 'function' ? updater(prev) : updater;
-      if (firebaseUser) {
-        const db = getFirebaseDb();
-        setDoc(doc(db, 'users', firebaseUser.uid), nextProfile, { merge: true });
-      } else {
-        localStorage.setItem('krishiveyra_profile', JSON.stringify(nextProfile));
-      }
+      localStorage.setItem('krishiveyra_profile', JSON.stringify(nextProfile));
       return nextProfile;
     });
   };
@@ -167,22 +126,6 @@ export default function App() {
     }
   });
 
-  // Sync diary entries from Firestore
-  useEffect(() => {
-    if (!firebaseUser) return;
-    const db = getFirebaseDb();
-    const q = query(collection(db, 'diaryEntries'), where('userId', '==', firebaseUser.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const entries: FarmDiaryEntry[] = [];
-      snapshot.forEach(doc => {
-        entries.push(doc.data() as FarmDiaryEntry);
-      });
-      // Sort descending by date/time
-      entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setDiaryEntriesState(entries);
-    });
-    return () => unsubscribe();
-  }, [firebaseUser]);
 
 
   // 6. UI Modals, Audio Playing State, and Notification Toast
@@ -205,7 +148,7 @@ export default function App() {
   const handleSaveScanToDiary = (scan: CropScanResult, dosageDetails?: string) => {
     const newEntry: FarmDiaryEntry = {
       id: 'diary-' + Date.now(),
-      userId: firebaseUser?.uid || 'farmer-001',
+      userId: 'local-user',
       cropName: scan.cropName,
       plotName: 'Main Crop Field',
       activityType: 'pesticide',
@@ -217,16 +160,11 @@ export default function App() {
       status: 'completed',
       createdAt: new Date().toISOString()
     };
-    if (firebaseUser) {
-      const db = getFirebaseDb();
-      setDoc(doc(db, 'diaryEntries', newEntry.id), newEntry);
-    } else {
-      setDiaryEntriesState(prev => {
-        const next = [newEntry, ...prev];
-        localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
-        return next;
-      });
-    }
+    setDiaryEntriesState(prev => {
+      const next = [newEntry, ...prev];
+      localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
+      return next;
+    });
     showToast(`Saved ${scan.cropName} diagnosis to Farm Diary!`);
   };
 
@@ -235,7 +173,7 @@ export default function App() {
   const handleAddDiaryEntry = (entry: Partial<FarmDiaryEntry>) => {
     const newEntry: FarmDiaryEntry = {
       id: 'diary-' + Date.now(),
-      userId: firebaseUser?.uid || 'farmer-001',
+      userId: 'local-user',
       cropName: entry.cropName || userProfile.primaryCrops[0] || 'Tomato',
       plotName: entry.plotName || 'Main Field',
       activityType: entry.activityType || 'note',
@@ -250,30 +188,20 @@ export default function App() {
       createdAt: new Date().toISOString()
     };
 
-    if (firebaseUser) {
-      const db = getFirebaseDb();
-      setDoc(doc(db, 'diaryEntries', newEntry.id), newEntry);
-    } else {
-      setDiaryEntriesState(prev => {
-        const next = [newEntry, ...prev];
-        localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
-        return next;
-      });
-    }
+    setDiaryEntriesState(prev => {
+      const next = [newEntry, ...prev];
+      localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
+      return next;
+    });
     showToast(`Logged activity to Farm Diary!`);
   };
 
   const handleDeleteDiaryEntry = (id: string) => {
-    if (firebaseUser) {
-      const db = getFirebaseDb();
-      deleteDoc(doc(db, 'diaryEntries', id));
-    } else {
-      setDiaryEntriesState(prev => {
-        const next = prev.filter(e => e.id !== id);
-        localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
-        return next;
-      });
-    }
+    setDiaryEntriesState(prev => {
+      const next = prev.filter(e => e.id !== id);
+      localStorage.setItem('krishiveyra_diary', JSON.stringify(next));
+      return next;
+    });
     showToast(`Diary record removed`);
   };
 
@@ -286,16 +214,6 @@ export default function App() {
     });
   };
 
-  if (!isFirebaseInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-emerald-800">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 font-black">Loading KrishiVeyra...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen transition-colors ${
