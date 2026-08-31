@@ -18,6 +18,7 @@ import { MedicineGuide } from './components/MedicineGuide';
 import { WeatherWidget } from './components/WeatherWidget';
 import { ExpertHelpline } from './components/ExpertHelpline';
 import { FarmDiary } from './components/FarmDiary';
+import { LoginScreen } from './components/LoginScreen';
 import { UserProfileModal } from './components/UserProfileModal';
 import { detectLocationAndWeather } from './utils/locationService';
 
@@ -402,29 +403,10 @@ export default function App() {
 
   if (!firebaseUser && !isGuest) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-emerald-50 px-4">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-emerald-100">
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-4xl">🌱</span>
-          </div>
-          <h1 className="text-3xl font-black text-emerald-900 mb-2 font-['Outfit']">KrishiVeyra</h1>
-          <p className="text-emerald-700 font-medium mb-6">Sign in to sync your farm data, diagnostic reports, and activity logs across your devices securely.</p>
-          <div className="space-y-3">
-            <button
-              onClick={handleGoogleLogin}
-              className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg shadow-lg shadow-emerald-200 transition active:scale-95 flex items-center justify-center gap-3"
-            >
-              Sign in with Google
-            </button>
-            <button
-              onClick={handleContinueAsGuest}
-              className="w-full py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-base transition active:scale-95 flex items-center justify-center gap-2"
-            >
-              Continue as Guest (Offline Mode)
-            </button>
-          </div>
-        </div>
-      </div>
+      <LoginScreen 
+        onGoogleLogin={handleGoogleLogin} 
+        onGuestLogin={handleContinueAsGuest} 
+      />
     );
   }
 
