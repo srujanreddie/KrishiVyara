@@ -1,4 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+
+import { getFirebaseDb, getFirebaseAuth } from '../lib/firebase';
+import { collection, query, where, onSnapshot, doc, setDoc, orderBy } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+
 import { UserProfile, CropScanResult, ExpertChatMessage, AgronomistExpert } from '../types';
 import { translations } from '../data/translations';
 import { agronomistExperts } from '../data/mockData';
@@ -45,6 +50,43 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
       status: 'delivered'
     }
   ]);
+
+  
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const auth = getFirebaseAuth();
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user ? user.uid : null);
+    });
+    return () => unsubscribe();
+  }, []);
+
+
+  useEffect(() => {
+    if (!userId) return;
+    const db = getFirebaseDb();
+    const q = query(collection(db, 'chatMessages'), where('userId', '==', userId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = [];
+      snapshot.forEach(doc => {
+        msgs.push(doc.data());
+      });
+      // Sort by timestamp if possible, we'll sort by numeric ID assuming we used Date.now()
+      msgs.sort((a, b) => {
+        const idA = parseInt(a.id.split('-').pop() || '0');
+        const idB = parseInt(b.id.split('-').pop() || '0');
+        return idA - idB;
+      });
+      
+      if (msgs.length > 0) {
+        setMessages(msgs);
+      }
+    });
+    return () => unsubscribe();
+  }, [userId]);
+
   const [inputMsg, setInputMsg] = useState<string>('');
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
@@ -95,8 +137,15 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
       status: 'sent'
     };
 
+    
     const newHistory = [...messages, userMessage];
-    setMessages(newHistory);
+    if (userId) {
+      const db = getFirebaseDb();
+      setDoc(doc(db, 'chatMessages', userMessage.id), { ...userMessage, userId });
+    } else {
+      setMessages(newHistory);
+    }
+
     setInputMsg('');
     setIsSending(true);
 
@@ -113,8 +162,15 @@ export const ExpertHelpline: React.FC<ExpertHelplineProps> = ({
       });
 
       const data = await res.json();
+      
       if (data.success && data.reply) {
-        setMessages(prev => [...prev, data.reply]);
+        if (userId) {
+          const db = getFirebaseDb();
+          setDoc(doc(db, 'chatMessages', data.reply.id), { ...data.reply, userId });
+        } else {
+          setMessages(prev => [...prev, data.reply]);
+        }
+
         if (userProfile.voiceAutoRead) {
           handleSpeak(data.reply.text);
         }

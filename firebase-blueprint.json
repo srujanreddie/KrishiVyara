@@ -1,0 +1,44 @@
+{
+  "rules_version": "2",
+  "collections": {
+    "users": {
+      "description": "User profiles.",
+      "schema": {
+        "name": "string",
+        "phone": "string",
+        "languagePreference": "string"
+      },
+      "security_rules": {
+        "read": "request.auth != null && request.auth.uid == resource.id",
+        "create": "request.auth != null && request.auth.uid == request.resource.id",
+        "update": "request.auth != null && request.auth.uid == resource.id"
+      }
+    },
+    "diaryEntries": {
+      "description": "Farm diary entries.",
+      "schema": {
+        "userId": "string",
+        "cropName": "string",
+        "activityType": "string"
+      },
+      "security_rules": {
+        "read": "request.auth != null && request.auth.uid == resource.data.userId",
+        "create": "request.auth != null && request.auth.uid == request.resource.data.userId",
+        "update": "request.auth != null && request.auth.uid == resource.data.userId",
+        "delete": "request.auth != null && request.auth.uid == resource.data.userId"
+      }
+    },
+    "scans": {
+      "description": "User crop scans.",
+      "schema": {
+        "userId": "string"
+      },
+      "security_rules": {
+        "read": "request.auth != null && request.auth.uid == resource.data.userId",
+        "create": "request.auth != null && request.auth.uid == request.resource.data.userId",
+        "update": "request.auth != null && request.auth.uid == resource.data.userId",
+        "delete": "request.auth != null && request.auth.uid == resource.data.userId"
+      }
+    }
+  }
+}

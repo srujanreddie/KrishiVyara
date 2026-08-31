@@ -41,7 +41,7 @@ export const sampleDiseases: CropScanResult[] = [
       'Prominent chlorotic yellow halos surrounding dead necrotized tissue',
       'Collar rot lesions forming at stem base near soil line'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/Alternaria_solani_-_leaf_lesions.jpg',
     symptoms: [
       'Concentric target-board rings on older lower leaves',
       'Yellow halo around brown circular spots',
@@ -121,7 +121,7 @@ export const sampleDiseases: CropScanResult[] = [
       'Pin-head entry holes in young developing bolls with brown staining',
       'Destroyed seeds, stained yellow-brown lint, and exit holes in mature bolls'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1598965675045-45c5e72c7d05?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/f/f2/Pectinophora_gossypiella_1265079.jpg',
     symptoms: [
       'Rosetted flowers that fail to open properly',
       'Small entry holes in young developing bolls',
@@ -201,7 +201,7 @@ export const sampleDiseases: CropScanResult[] = [
       'Tiny amber-colored bacterial exudate beads on leaf veins in early morning',
       'Drying and rolling of leaves resulting in bleached "kresek" appearance'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1536657464919-892534f60d6e?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Bacterial_blight_of_rice.jpeg',
     symptoms: [
       'Water-soaked to yellowish-white wavy lesions along leaf margins',
       'Milky bacterial ooze drops visible on young lesions in morning dew',
@@ -281,7 +281,7 @@ export const sampleDiseases: CropScanResult[] = [
       'Yellow urediniospore dust staining farmer fingers upon touch',
       'Severe leaf chlorosis followed by complete leaf necrosis and stunted spikes'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Wheat_leaf_rust_on_wheat.jpg',
     symptoms: [
       'Yellow to orange-yellow powdery pustules arranged in linear stripes on leaves',
       'Leaves turn dry and chlorotic as stripes coalesce',
@@ -361,7 +361,7 @@ export const sampleDiseases: CropScanResult[] = [
       'Thickened leathery puckered leaves with shortened internodes',
       'Severe plant stunting with flower abortion and small distorted fruit'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1588252303782-cb80119abd6d?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Taphrina_deformans_1.jpg',
     symptoms: [
       'Upward curling of leaf margins like a boat/cup (Thrips damage)',
       'Downward curling with thickened puckered leaves (Mite damage)',
@@ -441,7 +441,7 @@ export const sampleDiseases: CropScanResult[] = [
       'Heavy moist sawdust-like fecal frass accumulated inside leaf whorls',
       'Caterpillar with inverted Y mark on head and 4 square spots on 8th segment'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Spodoptera_frugiperda.jpg',
     symptoms: [
       'Ragged leaf holes and chewed whorls',
       'Abundant sawdust-like frass inside central funnel',
@@ -520,7 +520,7 @@ export const sampleDiseases: CropScanResult[] = [
       'White cottony fungal downy growth on the underside of leaves during morning dew',
       'Foul smell from decaying rotting canopy in severe field outbreaks'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/aa/Late_blight_on_potato_leaf_2.jpg',
     symptoms: [
       'Irregular water-soaked brown patches at leaf tips',
       'White mildew growth on lower leaf surfaces under high moisture',
@@ -599,7 +599,7 @@ export const sampleDiseases: CropScanResult[] = [
       'Concentric zones of dark sporulation with yellowish chlorotic borders',
       'Seed stalks snapping and falling over at lesion sites'
     ],
-    imageUrl: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Alternaria_porri_%28396462144%29.jpg',
     symptoms: [
       'Purplish-brown sunken spots with yellow halos on tubular leaves',
       'Leaves collapsing from the middle and drying from tips downwards',
@@ -699,7 +699,7 @@ export const initialDiaryEntries: FarmDiaryEntry[] = [
     date: '2026-08-28',
     time: '04:15 PM',
     notes: 'Spotted target board spots on lower leaves after humid nights. Ran KrishiVeyra Photo Scanner - Early Blight detected.',
-    imageUrl: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=800&auto=format&fit=crop&q=80',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/Alternaria_solani_-_leaf_lesions.jpg',
     diseaseScanId: 'scan-tomato-early-blight',
     status: 'completed',
     createdAt: '2026-08-28T16:30:00.000Z'

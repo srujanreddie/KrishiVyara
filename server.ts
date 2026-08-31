@@ -1525,6 +1525,14 @@ function generateFallbackExpertReply(userMsg?: string, scanContext?: any, lang: 
 }
 
 // ==========================================
+
+// ==========================================
+// Firebase Config Serving
+// ==========================================
+app.get('/firebase-applet-config.json', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'firebase-applet-config.json'));
+});
+
 // Vite Middleware / Static Production Serving
 // ==========================================
 async function startServer() {
